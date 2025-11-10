@@ -38,10 +38,12 @@ All services communicate on a private Docker bridge network (`automation`). Serv
 ### Credential Management
 
 All sensitive values are provided via environment variables:
-- Database credentials (PostgreSQL, MonsterMQ)
+- Database credentials (PostgreSQL)
 - Admin passwords (Grafana, InfluxDB)
 - Tailscale auth keys
 - Service-specific authentication
+
+**Note**: MonsterMQ uses a `config.yaml` file for configuration (not environment variables). See the MonsterMQ configuration section for details.
 
 **Never commit `.env` files or hardcode credentials in the compose file.**
 
@@ -198,10 +200,11 @@ mqtt://localhost:1883
    - Fill in all required environment variables:
      - `TS_AUTHKEY`: Your Tailscale auth key (required)
      - `TAILSCALE_HOSTNAME`: Desired hostname (default: `automation-stack`)
-     - Database credentials (PostgreSQL, MonsterMQ)
+     - Database credentials (PostgreSQL)
      - Admin credentials (Grafana, InfluxDB)
      - HiveMQ settings
    - **Important**: If deploying from Portainer, remove the `portainer` service from the compose file
+   - **Note**: After deployment, configure MonsterMQ by creating `config.yaml` in the `monstermq-config` volume (see MonsterMQ configuration section)
 
 3. **Deploy Stack**:
    - Review the configuration
@@ -283,8 +286,12 @@ All services include health checks with the following configuration:
 | HiveMQ Edge | `nc -z localhost 1883` |
 | MonsterMQ | `nc -z localhost 1883` or GraphQL check |
 | Ignition | `nc -z localhost 8088` or HTTP health endpoint |
-| TimeBase | `nc -z localhost 8011` |
-| TimeBase Historian | `nc -z localhost 8011` |
+| TimeBase Historian | `nc -z localhost 4511` |
+| TimeBase Explorer | `nc -z localhost 4531` |
+| TimeBase Simulator | `nc -z localhost 4521` |
+| TimeBase OPC UA | `nc -z localhost 4521` |
+| TimeBase MQTT | `nc -z localhost 4521` |
+| TimeBase SparkPlug B | `nc -z localhost 4521` |
 | InfluxDB | `wget -qO- http://localhost:8086/health` |
 | Grafana | `wget -qO- http://localhost:3000/login` |
 | Portainer | `wget -qO- http://localhost:9443/api/status` |
@@ -514,7 +521,7 @@ To safely update service images:
 
 ### Database Connection Errors
 
-**Symptoms**: FlowFuse or MonsterMQ cannot connect to PostgreSQL
+**Symptoms**: FlowFuse cannot connect to PostgreSQL
 
 **Solutions**:
 - Verify PostgreSQL is healthy: `docker compose ps postgres`
@@ -522,15 +529,21 @@ To safely update service images:
 - Verify credentials match in environment variables
 - Ensure `depends_on` health checks are passing
 
+**MonsterMQ Database Issues**:
+- MonsterMQ uses `config.yaml` for database configuration, not environment variables
+- Verify `config.yaml` in the `monstermq-config` volume has correct database connection settings
+- Check MonsterMQ logs: `docker compose logs monstermq`
+- Ensure PostgreSQL is accessible from the MonsterMQ container (same Docker network)
+
 ### High Memory Usage
 
 **Symptoms**: Containers are OOM killed or system is slow
 
 **Solutions**:
-- Adjust TimeBase heap size: `TB_HEAP=1G` (reduce from 2G)
-- Limit container memory in compose file
+- Limit container memory in compose file using `deploy.resources.limits.memory`
 - Monitor with `docker stats`
 - Consider running on a host with more RAM
+- TimeBase services have resource limits configured (see service definitions)
 
 ### Port Conflicts
 
