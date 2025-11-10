@@ -20,8 +20,8 @@ services:
       \ sleep 0.5\ndone\ntailscale --socket=/tmp/tailscaled.sock up --authkey=${TS_AUTHKEY}\
       \ --hostname=${TAILSCALE_HOSTNAME} --ssh\ntailscale --socket=/tmp/tailscaled.sock\
       \ serve reset\ntailscale --socket=/tmp/tailscaled.sock serve --bg tcp 80 flowfuse:3000\n\
-      tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 1880 node-red-standalone:1880\n\
-      tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 1881 node-red-flowfuse-test:1880\n\
+      tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 1880 node-red-a:1880\n\
+      tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 1881 node-red-b:1880\n\
       tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 1883 hivemq:1883\ntailscale\
       \ --socket=/tmp/tailscaled.sock serve --bg tcp 1884 hivemq-edge:1883\ntailscale\
       \ --socket=/tmp/tailscaled.sock serve --bg tcp 1885 monstermq:1883\ntailscale\
@@ -128,34 +128,14 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
-  node-red:
+  node-red-b:
     image: nodered/node-red:3.1
-    hostname: node-red-standalone
-    container_name: node-red-standalone
+    hostname: node-red-b
+    container_name: node-red-b
     environment:
       NODE_RED_ENABLE_PROJECTS: 'true'
     volumes:
-    - node-red-data:/data
-    ports:
-    - 1880:1880
-    networks:
-    - automation
-    restart: unless-stopped
-    healthcheck:
-      test:
-      - CMD-SHELL
-      - wget -qO- http://localhost:1880/ || exit 1
-      interval: 5s
-      timeout: 3s
-      retries: 10
-  node-red-flowfuse-test:
-    image: nodered/node-red:3.1
-    hostname: node-red-flowfuse-test
-    container_name: node-red-flowfuse-test
-    environment:
-      NODE_RED_ENABLE_PROJECTS: 'true'
-    volumes:
-    - node-red-flowfuse-test-data:/data
+    - node-red-b-data:/data
     ports:
     - 1881:1880
     networks:
@@ -463,6 +443,53 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+  dnsmasq:
+    image: strm/dnsmasq:latest
+    hostname: dnsmasq
+    container_name: dnsmasq
+    cap_add:
+    - NET_ADMIN
+    - NET_RAW
+    volumes:
+    - dnsmasq-config:/etc/dnsmasq.d
+    networks:
+    - automation
+    restart: unless-stopped
+    command:
+    - --log-queries
+    - --log-facility=-
+    - --server=127.0.0.11
+    - --server=8.8.8.8
+    - --server=8.8.4.4
+    - --no-resolv
+    - --cache-size=1000
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - dig @127.0.0.1 node-red-a || exit 1
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  node-red-a:
+    image: nodered/node-red:3.1
+    hostname: node-red-a
+    container_name: node-red-a
+    environment:
+      NODE_RED_ENABLE_PROJECTS: 'true'
+    volumes:
+    - node-red-a-data:/data
+    ports:
+    - 1880:1880
+    networks:
+    - automation
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:1880/ || exit 1
+      interval: 5s
+      timeout: 3s
+      retries: 10
 networks:
   automation:
     driver: bridge
@@ -471,8 +498,6 @@ volumes:
   postgres-data: null
   redis-data: null
   flowfuse-data: null
-  node-red-data: null
-  node-red-flowfuse-test-data: null
   monstermq-config: null
   monstermq-log: null
   monstermq-security: null
@@ -489,3 +514,6 @@ volumes:
   timebase-opcua: {}
   timebase-mqtt: {}
   timebase-sparkplugb: {}
+  node-red-a-data: null
+  node-red-b-data: null
+  dnsmasq-config: {}

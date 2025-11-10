@@ -52,8 +52,9 @@ All sensitive values are provided via environment variables:
 | Component | Image | Purpose | Persistent Volume |
 |-----------|-------|---------|-------------------|
 | **Tailscale** | `tailscale/tailscale:stable` | VPN sidecar for secure access | `tailscale-state` |
-| **Node-RED (Standalone)** | `nodered/node-red:3.1` | Standalone Node-RED instance | `node-red-data` |
-| **Node-RED (FlowFuse Test)** | `nodered/node-red:3.1` | Node-RED instance for FlowFuse testing | `node-red-flowfuse-test-data` |
+| **Node-RED A** | `nodered/node-red:3.1` | Node-RED instance A | `node-red-a-data` |
+| **Node-RED B** | `nodered/node-red:3.1` | Node-RED instance B | `node-red-b-data` |
+| **DNSMasq** | `strm/dnsmasq:latest` | DNS server for service resolution | `dnsmasq-config` |
 | **FlowFuse** | `flowfuse/flowfuse:latest` | Collaborative Node-RED platform | `flowfuse-data` |
 | **HiveMQ CE** | `hivemq/hivemq-ce:latest` | Production MQTT broker | `hivemq-data` |
 | **HiveMQ Edge** | `hivemq/hivemq-edge:latest` | Edge MQTT gateway | `hivemq-edge-data` |
@@ -92,8 +93,8 @@ All services are accessible via Tailscale on the following ports:
 | Tailscale Port | Service | Internal Target | Protocol |
 |----------------|---------|-----------------|----------|
 | `80` | FlowFuse | `flowfuse:3000` | HTTP |
-| `1880` | Node-RED (Standalone) | `node-red-standalone:1880` | HTTP |
-| `1881` | Node-RED (FlowFuse Test) | `node-red-flowfuse-test:1880` | HTTP |
+| `1880` | Node-RED A | `node-red-a:1880` | HTTP |
+| `1881` | Node-RED B | `node-red-b:1880` | HTTP |
 | `1883` | HiveMQ CE | `hivemq:1883` | MQTT |
 | `1884` | HiveMQ Edge | `hivemq-edge:1883` | MQTT |
 | `1885` | MonsterMQ MQTT | `monstermq:1883` | MQTT |
@@ -121,8 +122,8 @@ All services are also accessible from the host machine on the following ports:
 | Host Port | Service | Container Port | Protocol |
 |-----------|---------|----------------|----------|
 | `3000` | FlowFuse | `3000` | HTTP |
-| `1880` | Node-RED (Standalone) | `1880` | HTTP |
-| `1881` | Node-RED (FlowFuse Test) | `1880` | HTTP |
+| `1880` | Node-RED A | `1880` | HTTP |
+| `1881` | Node-RED B | `1880` | HTTP |
 | `1883` | HiveMQ CE | `1883` | MQTT |
 | `1884` | HiveMQ Edge | `1883` | MQTT |
 | `1885` | MonsterMQ MQTT | `1883` | MQTT |
@@ -150,10 +151,10 @@ All services are also accessible from the host machine on the following ports:
 # Example: Access Grafana
 https://automation-stack:9090
 
-# Example: Access Node-RED (Standalone)
+# Example: Access Node-RED A
 http://automation-stack:1880
 
-# Example: Access Node-RED (FlowFuse Test)
+# Example: Access Node-RED B
 http://automation-stack:1881
 
 # Example: Connect to HiveMQ MQTT
@@ -165,10 +166,10 @@ mqtt://automation-stack:1883
 # Example: Access Grafana
 http://localhost:9090
 
-# Example: Access Node-RED (Standalone)
+# Example: Access Node-RED A
 http://localhost:1880
 
-# Example: Access Node-RED (FlowFuse Test)
+# Example: Access Node-RED B
 http://localhost:1881
 
 # Example: Connect to HiveMQ MQTT
@@ -297,8 +298,9 @@ All services include health checks with the following configuration:
 | Tailscale | `tailscale status --json` |
 | PostgreSQL | `pg_isready -U $POSTGRES_USER` |
 | Redis | `redis-cli ping` |
-| Node-RED (Standalone) | `wget -qO- http://localhost:1880/` |
-| Node-RED (FlowFuse Test) | `wget -qO- http://localhost:1881/` |
+| Node-RED A | `wget -qO- http://localhost:1880/` |
+| Node-RED B | `wget -qO- http://localhost:1881/` |
+| DNSMasq | `dig @127.0.0.1 node-red-a` |
 | FlowFuse | `wget -qO- http://localhost:3000/` |
 | HiveMQ | `nc -z localhost 1883` |
 | HiveMQ Edge | `nc -z localhost 1883` |
@@ -318,23 +320,34 @@ All services include health checks with the following configuration:
 
 ### Node-RED Instances
 
-The stack includes **two Node-RED instances**:
+The stack includes **two Node-RED instances** (A and B):
 
-1. **Node-RED (Standalone)** - `node-red-standalone`
+1. **Node-RED A** - `node-red-a`
    - **Projects Enabled**: `NODE_RED_ENABLE_PROJECTS=true`
-   - **Persistent Storage**: `node-red-data` volume
+   - **Persistent Storage**: `node-red-a-data` volume
    - **Port**: `1880` (host and Tailscale)
    - **Access**: `http://<tailscale-host>:1880` or `http://localhost:1880`
-   - **Purpose**: Standalone Node-RED for direct use
+   - **Hostname**: `node-red-a` (resolvable via DNSMasq)
 
-2. **Node-RED (FlowFuse Test)** - `node-red-flowfuse-test`
+2. **Node-RED B** - `node-red-b`
    - **Projects Enabled**: `NODE_RED_ENABLE_PROJECTS=true`
-   - **Persistent Storage**: `node-red-flowfuse-test-data` volume
+   - **Persistent Storage**: `node-red-b-data` volume
    - **Port**: `1881` (host and Tailscale)
    - **Access**: `http://<tailscale-host>:1881` or `http://localhost:1881`
-   - **Purpose**: Test instance for FlowFuse integration testing
+   - **Hostname**: `node-red-b` (resolvable via DNSMasq)
 
-**Note**: FlowFuse also creates Node-RED instances dynamically through its platform. These two instances are pre-configured for standalone use and testing.
+**Note**: FlowFuse also creates Node-RED instances dynamically through its platform. These two instances (A and B) are pre-configured for direct use and testing.
+
+### DNSMasq
+
+- **Purpose**: Provides DNS resolution and caching for service hostnames within the Docker network
+- **Configuration**: 
+  - Forwards to Docker's internal DNS (127.0.0.11) for service name resolution
+  - Uses Google DNS (8.8.8.8, 8.8.4.4) for external queries
+  - Caches DNS responses for improved performance
+- **Service Resolution**: All services can resolve each other by hostname (e.g., `node-red-a`, `node-red-b`, `flowfuse`, `postgres`)
+- **Persistent Storage**: `dnsmasq-config` volume for custom DNS configurations
+- **Note**: Docker Compose already provides DNS resolution via service names. DNSMasq adds caching and can be used for custom DNS entries if needed.
 
 ### FlowFuse
 
@@ -345,7 +358,7 @@ The stack includes **two Node-RED instances**:
 - **Domain Configuration**: Requires `DOMAIN` environment variable for Node-RED instance routing (set via `FLOWFUSE_DOMAIN` in `.env`)
 - **Persistent Storage**: `/var/lib/flowfuse` volume
 - **Access**: `http://<tailscale-host>:80` or `http://localhost:3000`
-- **Node-RED Instances**: FlowFuse creates Node-RED instances dynamically via Docker. A separate test instance (`node-red-flowfuse-test`) is also available on port 1881.
+- **Node-RED Instances**: FlowFuse creates Node-RED instances dynamically via Docker. Two pre-configured instances (Node-RED A on port 1880, Node-RED B on port 1881) are also available for direct use.
 
 ### HiveMQ CE
 
@@ -629,8 +642,9 @@ flowchart LR
   TS[Tailscale Sidecar<br/>userspace-networking<br/>serve-only]
   
   subgraph AppNet["Automation Network (bridge)"]
-    NR[Node-RED Standalone<br/>:1880]
-    NRT[Node-RED FlowFuse Test<br/>:1881]
+    NRA[Node-RED A<br/>:1880]
+    NRB[Node-RED B<br/>:1881]
+    DNS[DNSMasq<br/>DNS Server]
     FF[FlowFuse<br/>:3000]
     HM[HiveMQ CE<br/>:1883]
     HME[HiveMQ Edge<br/>:1883]
@@ -649,9 +663,12 @@ flowchart LR
     PT[Portainer<br/>:9443<br/>optional]
   end
   
-  TS -->|serve tcp 1880| NR
-  TS -->|serve tcp 1881| NRT
+  TS -->|serve tcp 1880| NRA
+  TS -->|serve tcp 1881| NRB
   TS -->|serve tcp 80| FF
+  DNS -.->|DNS resolution| NRA
+  DNS -.->|DNS resolution| NRB
+  DNS -.->|DNS resolution| FF
   TS -->|serve tcp 1883| HM
   TS -->|serve tcp 1884| HME
   TS -->|serve tcp 1885| MQ
