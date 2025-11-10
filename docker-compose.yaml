@@ -1,0 +1,519 @@
+version: '3.9'
+name: automation-stack
+services:
+  tailscale:
+    image: tailscale/tailscale:stable
+    hostname: ${TAILSCALE_HOSTNAME}
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY}
+    volumes:
+    - tailscale-state:/var/lib/tailscale
+    networks:
+    - automation
+    command:
+    - /bin/sh
+    - -c
+    - "if [ -z \"${TS_AUTHKEY}\" ]; then\n  echo 'ERROR: TS_AUTHKEY must be provided'\
+      \ >&2\n  exit 1\nfi\ntailscaled --state=/var/lib/tailscale/tailscaled.state\
+      \ --socket=/tmp/tailscaled.sock --tun=userspace-networking &\nTAILSCALED_PID=$!\n\
+      until tailscale --socket=/tmp/tailscaled.sock status >/dev/null 2>&1; do\n \
+      \ sleep 0.5\ndone\ntailscale --socket=/tmp/tailscaled.sock up --authkey=${TS_AUTHKEY}\
+      \ --hostname=${TAILSCALE_HOSTNAME} --ssh\ntailscale --socket=/tmp/tailscaled.sock\
+      \ serve reset\ntailscale --socket=/tmp/tailscaled.sock serve --bg tcp 80 flowfuse:3000\n\
+      tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 1880 node-red-a:1880\n\
+      tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 1881 node-red-b:1880\n\
+      tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 1883 hivemq:1883\ntailscale\
+      \ --socket=/tmp/tailscaled.sock serve --bg tcp 1884 hivemq-edge:1883\ntailscale\
+      \ --socket=/tmp/tailscaled.sock serve --bg tcp 1885 monstermq:1883\ntailscale\
+      \ --socket=/tmp/tailscaled.sock serve --bg tcp 8088 ignition:8088\ntailscale\
+      \ --socket=/tmp/tailscaled.sock serve --bg tcp 8885 monstermq:8883\ntailscale\
+      \ --socket=/tmp/tailscaled.sock serve --bg tcp 9000 monstermq:9000\ntailscale\
+      \ --socket=/tmp/tailscaled.sock serve --bg tcp 9001 monstermq:9001\ntailscale\
+      \ --socket=/tmp/tailscaled.sock serve --bg tcp 4840 monstermq:4840\ntailscale\
+      \ --socket=/tmp/tailscaled.sock serve --bg tcp 4000 monstermq:4000\ntailscale\
+      \ --socket=/tmp/tailscaled.sock serve --bg tcp 4511 historian:4511\ntailscale\
+      \ --socket=/tmp/tailscaled.sock serve --bg tcp 4512 historian:4512\ntailscale\
+      \ --socket=/tmp/tailscaled.sock serve --bg tcp 4531 explorer:4531\ntailscale\
+      \ --socket=/tmp/tailscaled.sock serve --bg tcp 4532 explorer:4532\ntailscale\
+      \ --socket=/tmp/tailscaled.sock serve --bg tcp 4521 simulator:4521\ntailscale\
+      \ --socket=/tmp/tailscaled.sock serve --bg tcp 4522 simulator:4522\ntailscale\
+      \ --socket=/tmp/tailscaled.sock serve --bg tcp 4523 opcua:4521\ntailscale --socket=/tmp/tailscaled.sock\
+      \ serve --bg tcp 4524 opcua:4522\ntailscale --socket=/tmp/tailscaled.sock serve\
+      \ --bg tcp 4525 mqtt:4521\ntailscale --socket=/tmp/tailscaled.sock serve --bg\
+      \ tcp 4526 mqtt:4522\ntailscale --socket=/tmp/tailscaled.sock serve --bg tcp\
+      \ 4527 sparkplugb:4521\ntailscale --socket=/tmp/tailscaled.sock serve --bg tcp\
+      \ 4528 sparkplugb:4522\ntailscale --socket=/tmp/tailscaled.sock serve --bg tcp\
+      \ 9086 influxdb:8086\ntailscale --socket=/tmp/tailscaled.sock serve --bg tcp\
+      \ 9090 grafana:3000\ntailscale --socket=/tmp/tailscaled.sock serve --bg tcp\
+      \ 5432 postgres:5432\ntailscale --socket=/tmp/tailscaled.sock serve --bg tcp\
+      \ 9443 portainer:9443\nwait $TAILSCALED_PID\n"
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD
+      - tailscale
+      - --socket=/tmp/tailscaled.sock
+      - status
+      - --json
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+    - postgres-data:/var/lib/postgresql/data
+    ports:
+    - 5432:5432
+    networks:
+    - automation
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${POSTGRES_USER}
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  redis:
+    image: redis:7-alpine
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+    - redis-data:/data
+    networks:
+    - automation
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD
+      - redis-cli
+      - ping
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  flowfuse:
+    image: flowfuse/flowfuse:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      FF_PROJECTS_DIR: /var/lib/flowfuse
+      FF_STORAGE__TYPE: localfs
+      FF_DB__CLIENT: pg
+      FF_DB__PG__HOST: postgres
+      FF_DB__PG__USER: ${POSTGRES_USER}
+      FF_DB__PG__PASSWORD: ${POSTGRES_PASSWORD}
+      FF_DB__PG__DATABASE: ${POSTGRES_DB}
+      FF_REDIS__HOST: redis
+      DOMAIN: ${FLOWFUSE_DOMAIN:-${TAILSCALE_HOSTNAME}.ts.net}
+      FF_DRIVER__TYPE: docker
+      FF_DRIVER__OPTIONS__SOCKET: /var/run/docker.sock
+    volumes:
+    - flowfuse-data:/var/lib/flowfuse
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+    - 3000:3000
+    networks:
+    - automation
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:3000/ || exit 1
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  node-red-b:
+    image: nodered/node-red:3.1
+    hostname: node-red-b
+    container_name: node-red-b
+    environment:
+      NODE_RED_ENABLE_PROJECTS: 'true'
+    volumes:
+    - node-red-b-data:/data
+    ports:
+    - 1881:1880
+    networks:
+    - automation
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:1880/ || exit 1
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  monstermq:
+    image: rocworks/monstermq:latest
+    hostname: monstermq
+    container_name: monstermq
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+    - 1885:1883
+    - 8885:8883
+    - 9000:9000
+    - 9001:9001
+    - 4840:4840
+    - 4000:4000
+    restart: unless-stopped
+    volumes:
+    - monstermq-config:/app/config
+    - monstermq-data:/app/data
+    - monstermq-logs:/app/logs
+    networks:
+    - automation
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - nc -z localhost 1883 || (wget -qO- http://localhost:4000/graphql 2>/dev/null
+        | grep -q 'graphql' && exit 0 || exit 1)
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  hivemq:
+    image: hivemq/hivemq-ce:latest
+    environment:
+      HIVEMQ_ALLOW_ANONYMOUS: ${HIVEMQ_ALLOW_ANONYMOUS}
+      HIVEMQ_USER: ${HIVEMQ_USER}
+      HIVEMQ_PASSWORD: ${HIVEMQ_PASSWORD}
+    volumes:
+    - hivemq-data:/opt/hivemq/data
+    ports:
+    - 1883:1883
+    networks:
+    - automation
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - nc -z localhost 1883
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  hivemq-edge:
+    image: hivemq/hivemq-edge:latest
+    volumes:
+    - hivemq-edge-data:/opt/hivemq-edge/data
+    ports:
+    - 1884:1883
+    networks:
+    - automation
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - nc -z localhost 1883
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  ignition:
+    image: kcollins/ignition:8.1
+    environment:
+      ACCEPT_EULA: Y
+    volumes:
+    - ignition-data:/usr/local/share/ignition/data
+    ports:
+    - 8088:8088
+    networks:
+    - automation
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - nc -z localhost 8088 || (wget -qO- http://localhost:8088/main/system/health
+        2>/dev/null | grep -q 'health' && exit 0 || exit 1)
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  timebase-historian:
+    image: timebase/historian:latest
+    hostname: historian
+    container_name: historian
+    ports:
+    - 4511:4511
+    - 4512:4512
+    restart: unless-stopped
+    volumes:
+    - timebase-historian:/historian
+    environment:
+    - Settings=/historian/settings
+    - Data=/historian/data
+    - Logs=/historian/logs
+    networks:
+    - automation
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - nc -z localhost 4511
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  timebase-explorer:
+    image: timebase/explorer:latest
+    hostname: explorer
+    container_name: explorer
+    ports:
+    - 4531:4531
+    - 4532:4532
+    restart: unless-stopped
+    volumes:
+    - timebase-explorer:/explorer
+    environment:
+    - Settings=/explorer/settings
+    - Config=/explorer/config
+    - Data=/explorer/data
+    - Logs=/explorer/logs
+    networks:
+    - automation
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - nc -z localhost 4531
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  timebase-simulator:
+    image: timebase/collector:latest
+    hostname: simulator
+    container_name: simulator
+    ports:
+    - 4521:4521
+    - 4522:4522
+    restart: unless-stopped
+    volumes:
+    - timebase-simulator:/simulator
+    environment:
+    - Active=false
+    - Settings=/simulator/settings
+    - Config=/simulator/config
+    - Data=/simulator/data
+    - Logs=/simulator/logs
+    networks:
+    - automation
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - nc -z localhost 4521
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  timebase-opcua:
+    image: timebase/collector:latest
+    hostname: opcua
+    container_name: opcua
+    ports:
+    - 4523:4521
+    - 4524:4522
+    restart: unless-stopped
+    volumes:
+    - timebase-opcua:/opcua
+    environment:
+    - Active=false
+    - Settings=/opcua/settings
+    - Config=/opcua/config
+    - Data=/opcua/data
+    - Logs=/opcua/logs
+    networks:
+    - automation
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - nc -z localhost 4521
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  timebase-mqtt:
+    image: timebase/collector:latest
+    hostname: mqtt
+    container_name: mqtt
+    ports:
+    - 4525:4521
+    - 4526:4522
+    restart: unless-stopped
+    volumes:
+    - timebase-mqtt:/mqtt
+    environment:
+    - Active=false
+    - Settings=/mqtt/settings
+    - Config=/mqtt/config
+    - Data=/mqtt/data
+    - Logs=/mqtt/logs
+    networks:
+    - automation
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - nc -z localhost 4521
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  timebase-sparkplugb:
+    image: timebase/collector:latest
+    hostname: sparkplugb
+    container_name: sparkplugb
+    ports:
+    - 4527:4521
+    - 4528:4522
+    restart: unless-stopped
+    volumes:
+    - timebase-sparkplugb:/sparkplugb
+    environment:
+    - Active=false
+    - Settings=/sparkplugb/settings
+    - Config=/sparkplugb/config
+    - Data=/sparkplugb/data
+    - Logs=/sparkplugb/logs
+    networks:
+    - automation
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - nc -z localhost 4521
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  monstermq-config: null
+  monstermq-data: null
+  monstermq-logs: null
+  influxdb:
+    image: influxdb:2.7
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUXDB_ADMIN_USER}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_ADMIN_PASSWORD}
+      DOCKER_INFLUXDB_INIT_ORG: ${INFLUXDB_ORG}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET}
+      DOCKER_INFLUXDB_INIT_RETENTION: ${INFLUXDB_RETENTION}
+    volumes:
+    - influxdb-data:/var/lib/influxdb2
+    - influxdb-config:/etc/influxdb2
+    ports:
+    - 9086:8086
+    networks:
+    - automation
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:8086/health || exit 1
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  grafana:
+    image: grafana/grafana:10.4.3
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+    volumes:
+    - grafana-data:/var/lib/grafana
+    ports:
+    - 9090:3000
+    networks:
+    - automation
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:3000/login || exit 1
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  portainer:
+    image: portainer/portainer-ce:latest
+    command: -H unix:///var/run/docker.sock
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    - portainer-data:/data
+    ports:
+    - 9443:9443
+    networks:
+    - automation
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:9443/api/status || exit 1
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  dnsmasq:
+    image: strm/dnsmasq:latest
+    hostname: dnsmasq
+    container_name: dnsmasq
+    cap_add:
+    - NET_ADMIN
+    - NET_RAW
+    volumes:
+    - dnsmasq-config:/etc/dnsmasq.d
+    networks:
+    - automation
+    restart: unless-stopped
+    command:
+    - --log-queries
+    - --log-facility=-
+    - --server=127.0.0.11
+    - --server=8.8.8.8
+    - --server=8.8.4.4
+    - --no-resolv
+    - --cache-size=1000
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - dig @127.0.0.1 node-red-a || exit 1
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  node-red-a:
+    image: nodered/node-red:3.1
+    hostname: node-red-a
+    container_name: node-red-a
+    environment:
+      NODE_RED_ENABLE_PROJECTS: 'true'
+    volumes:
+    - node-red-a-data:/data
+    ports:
+    - 1880:1880
+    networks:
+    - automation
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:1880/ || exit 1
+      interval: 5s
+      timeout: 3s
+      retries: 10
+networks:
+  automation:
+    driver: bridge
+volumes:
+  tailscale-state: null
+  postgres-data: null
+  redis-data: null
+  flowfuse-data: null
+  monstermq-config: null
+  monstermq-log: null
+  monstermq-security: null
+  hivemq-data: null
+  hivemq-edge-data: null
+  ignition-data: null
+  influxdb-data: null
+  influxdb-config: null
+  grafana-data: null
+  portainer-data: null
+  timebase-historian: {}
+  timebase-explorer: {}
+  timebase-simulator: {}
+  timebase-opcua: {}
+  timebase-mqtt: {}
+  timebase-sparkplugb: {}
+  node-red-a-data: null
+  node-red-b-data: null
+  dnsmasq-config: {}
