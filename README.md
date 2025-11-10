@@ -102,18 +102,12 @@ All services are accessible via Tailscale on the following ports:
 | `8885` | MonsterMQ MQTT/TLS | `monstermq:8883` | MQTT over TLS |
 | `9000` | MonsterMQ WebSocket | `monstermq:9000` | WebSocket |
 | `9001` | MonsterMQ WebSocket Secure | `monstermq:9001` | WSS |
-| `4511` | TimeBase Historian | `historian:4511` | TCP |
-| `4512` | TimeBase Historian | `historian:4512` | TCP |
-| `4531` | TimeBase Explorer | `explorer:4531` | HTTP |
-| `4532` | TimeBase Explorer | `explorer:4532` | TCP |
-| `4521` | TimeBase Simulator | `simulator:4521` | TCP |
-| `4522` | TimeBase Simulator | `simulator:4522` | TCP |
-| `4523` | TimeBase OPC UA | `opcua:4521` | TCP |
-| `4524` | TimeBase OPC UA | `opcua:4522` | TCP |
-| `4525` | TimeBase MQTT | `mqtt:4521` | TCP |
-| `4526` | TimeBase MQTT | `mqtt:4522` | TCP |
-| `4527` | TimeBase SparkPlug B | `sparkplugb:4521` | TCP |
-| `4528` | TimeBase SparkPlug B | `sparkplugb:4522` | TCP |
+| `4511`, `4512` | TimeBase Historian | `historian:4511`, `historian:4512` | TCP |
+| `4531`, `4532` | TimeBase Explorer | `explorer:4531`, `explorer:4532` | HTTP, TCP |
+| `4521`, `4522` | TimeBase Simulator | `simulator:4521`, `simulator:4522` | TCP |
+| `4523`, `4524` | TimeBase OPC UA | `opcua:4521`, `opcua:4522` | TCP |
+| `4525`, `4526` | TimeBase MQTT | `mqtt:4521`, `mqtt:4522` | TCP |
+| `4527`, `4528` | TimeBase SparkPlug B | `sparkplugb:4521`, `sparkplugb:4522` | TCP |
 | `9086` | InfluxDB | `influxdb:8086` | HTTP |
 | `9090` | Grafana | `grafana:3000` | HTTP |
 | `9443` | Portainer (optional) | `portainer:9443` | HTTPS |
@@ -136,18 +130,12 @@ All services are also accessible from the host machine on the following ports:
 | `8885` | MonsterMQ MQTT/TLS | `8883` | MQTT over TLS |
 | `9000` | MonsterMQ WebSocket | `9000` | WebSocket |
 | `9001` | MonsterMQ WebSocket Secure | `9001` | WSS |
-| `4511` | TimeBase Historian | `4511` | TCP |
-| `4512` | TimeBase Historian | `4512` | TCP |
-| `4531` | TimeBase Explorer | `4531` | HTTP |
-| `4532` | TimeBase Explorer | `4532` | TCP |
-| `4521` | TimeBase Simulator | `4521` | TCP |
-| `4522` | TimeBase Simulator | `4522` | TCP |
-| `4523` | TimeBase OPC UA | `4521` | TCP |
-| `4524` | TimeBase OPC UA | `4522` | TCP |
-| `4525` | TimeBase MQTT | `4521` | TCP |
-| `4526` | TimeBase MQTT | `4522` | TCP |
-| `4527` | TimeBase SparkPlug B | `4521` | TCP |
-| `4528` | TimeBase SparkPlug B | `4522` | TCP |
+| `4511`, `4512` | TimeBase Historian | `4511`, `4512` | TCP |
+| `4531`, `4532` | TimeBase Explorer | `4531`, `4532` | HTTP, TCP |
+| `4521`, `4522` | TimeBase Simulator | `4521`, `4522` | TCP |
+| `4523`, `4524` | TimeBase OPC UA | `4521`, `4522` | TCP |
+| `4525`, `4526` | TimeBase MQTT | `4521`, `4522` | TCP |
+| `4527`, `4528` | TimeBase SparkPlug B | `4521`, `4522` | TCP |
 | `9086` | InfluxDB | `8086` | HTTP |
 | `9090` | Grafana | `3000` | HTTP |
 | `9443` | Portainer (optional) | `9443` | HTTPS |
