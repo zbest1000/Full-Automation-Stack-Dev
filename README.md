@@ -176,8 +176,6 @@ mqtt://localhost:1883
 ├── config/
 │   └── monstermq-config.yaml.example  # MonsterMQ configuration template
 ├── portainer-template.json      # Portainer App Template (for Portainer deployment)
-├── templates/
-│   └── automation-stack-compose.yaml  # Legacy compose file location
 └── README.md                    # This file
 ```
 
@@ -512,7 +510,7 @@ To safely update service images:
 
 2. **Update Image Tags**:
    - In Portainer: Edit stack, update image tags in compose file
-   - Via Compose: Update `image:` fields in `templates/automation-stack-compose.yaml`
+   - Via Compose: Update `image:` fields in `docker-compose.yaml`
 
 3. **Pull New Images**:
    ```bash
