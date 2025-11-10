@@ -3,59 +3,58 @@ name: automation-stack
 services:
   tailscale:
     image: tailscale/tailscale:stable
-    hostname: "${TAILSCALE_HOSTNAME}"
+    hostname: ${TAILSCALE_HOSTNAME}
     environment:
       TS_AUTHKEY: ${TS_AUTHKEY}
     volumes:
-      - tailscale-state:/var/lib/tailscale
+    - tailscale-state:/var/lib/tailscale
     networks:
-      - automation
+    - automation
     command:
-      - /bin/sh
-      - -c
-      - |
-        if [ -z "${TS_AUTHKEY}" ]; then
-          echo 'ERROR: TS_AUTHKEY must be provided' >&2
-          exit 1
-        fi
-        tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/tmp/tailscaled.sock --tun=userspace-networking &
-        TAILSCALED_PID=$!
-        until tailscale --socket=/tmp/tailscaled.sock status >/dev/null 2>&1; do
-          sleep 0.5
-        done
-        tailscale --socket=/tmp/tailscaled.sock up --authkey=${TS_AUTHKEY} --hostname=${TAILSCALE_HOSTNAME} --ssh
-        tailscale --socket=/tmp/tailscaled.sock serve reset
-        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 80 flowfuse:3000
-        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 1880 node-red:1880
-        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 1883 hivemq:1883
-        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 1884 hivemq-edge:1883
-        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 1885 monstermq:1883
-        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 8088 ignition:8088
-        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 8885 monstermq:8883
-        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 9000 monstermq:9000
-        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 9001 monstermq:9001
-        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 4840 monstermq:4840
-        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 4000 monstermq:4000
-        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 4511 historian:4511
-        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 4512 historian:4512
-        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 4531 explorer:4531
-        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 4532 explorer:4532
-        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 4521 simulator:4521
-        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 4522 simulator:4522
-        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 4523 opcua:4521
-        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 4524 opcua:4522
-        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 4525 mqtt:4521
-        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 4526 mqtt:4522
-        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 4527 sparkplugb:4521
-        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 4528 sparkplugb:4522
-        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 9086 influxdb:8086
-        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 9090 grafana:3000
-        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 5432 postgres:5432
-        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 9443 portainer:9443
-        wait $TAILSCALED_PID
+    - /bin/sh
+    - -c
+    - "if [ -z \"${TS_AUTHKEY}\" ]; then\n  echo 'ERROR: TS_AUTHKEY must be provided'\
+      \ >&2\n  exit 1\nfi\ntailscaled --state=/var/lib/tailscale/tailscaled.state\
+      \ --socket=/tmp/tailscaled.sock --tun=userspace-networking &\nTAILSCALED_PID=$!\n\
+      until tailscale --socket=/tmp/tailscaled.sock status >/dev/null 2>&1; do\n \
+      \ sleep 0.5\ndone\ntailscale --socket=/tmp/tailscaled.sock up --authkey=${TS_AUTHKEY}\
+      \ --hostname=${TAILSCALE_HOSTNAME} --ssh\ntailscale --socket=/tmp/tailscaled.sock\
+      \ serve reset\ntailscale --socket=/tmp/tailscaled.sock serve --bg tcp 80 flowfuse:3000\n\
+      tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 1880 node-red-standalone:1880\n\
+      tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 1881 node-red-flowfuse-test:1880\n\
+      tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 1883 hivemq:1883\ntailscale\
+      \ --socket=/tmp/tailscaled.sock serve --bg tcp 1884 hivemq-edge:1883\ntailscale\
+      \ --socket=/tmp/tailscaled.sock serve --bg tcp 1885 monstermq:1883\ntailscale\
+      \ --socket=/tmp/tailscaled.sock serve --bg tcp 8088 ignition:8088\ntailscale\
+      \ --socket=/tmp/tailscaled.sock serve --bg tcp 8885 monstermq:8883\ntailscale\
+      \ --socket=/tmp/tailscaled.sock serve --bg tcp 9000 monstermq:9000\ntailscale\
+      \ --socket=/tmp/tailscaled.sock serve --bg tcp 9001 monstermq:9001\ntailscale\
+      \ --socket=/tmp/tailscaled.sock serve --bg tcp 4840 monstermq:4840\ntailscale\
+      \ --socket=/tmp/tailscaled.sock serve --bg tcp 4000 monstermq:4000\ntailscale\
+      \ --socket=/tmp/tailscaled.sock serve --bg tcp 4511 historian:4511\ntailscale\
+      \ --socket=/tmp/tailscaled.sock serve --bg tcp 4512 historian:4512\ntailscale\
+      \ --socket=/tmp/tailscaled.sock serve --bg tcp 4531 explorer:4531\ntailscale\
+      \ --socket=/tmp/tailscaled.sock serve --bg tcp 4532 explorer:4532\ntailscale\
+      \ --socket=/tmp/tailscaled.sock serve --bg tcp 4521 simulator:4521\ntailscale\
+      \ --socket=/tmp/tailscaled.sock serve --bg tcp 4522 simulator:4522\ntailscale\
+      \ --socket=/tmp/tailscaled.sock serve --bg tcp 4523 opcua:4521\ntailscale --socket=/tmp/tailscaled.sock\
+      \ serve --bg tcp 4524 opcua:4522\ntailscale --socket=/tmp/tailscaled.sock serve\
+      \ --bg tcp 4525 mqtt:4521\ntailscale --socket=/tmp/tailscaled.sock serve --bg\
+      \ tcp 4526 mqtt:4522\ntailscale --socket=/tmp/tailscaled.sock serve --bg tcp\
+      \ 4527 sparkplugb:4521\ntailscale --socket=/tmp/tailscaled.sock serve --bg tcp\
+      \ 4528 sparkplugb:4522\ntailscale --socket=/tmp/tailscaled.sock serve --bg tcp\
+      \ 9086 influxdb:8086\ntailscale --socket=/tmp/tailscaled.sock serve --bg tcp\
+      \ 9090 grafana:3000\ntailscale --socket=/tmp/tailscaled.sock serve --bg tcp\
+      \ 5432 postgres:5432\ntailscale --socket=/tmp/tailscaled.sock serve --bg tcp\
+      \ 9443 portainer:9443\nwait $TAILSCALED_PID\n"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "tailscale", "--socket=/tmp/tailscaled.sock", "status", "--json"]
+      test:
+      - CMD
+      - tailscale
+      - --socket=/tmp/tailscaled.sock
+      - status
+      - --json
       interval: 5s
       timeout: 3s
       retries: 10
@@ -66,15 +65,16 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+    - postgres-data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
-
+    - 5432:5432
     networks:
-      - automation
+    - automation
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${POSTGRES_USER}
       interval: 5s
       timeout: 3s
       retries: 10
@@ -82,12 +82,15 @@ services:
     image: redis:7-alpine
     command: redis-server --save 60 1 --loglevel warning
     volumes:
-      - redis-data:/data
+    - redis-data:/data
     networks:
-      - automation
+    - automation
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test:
+      - CMD
+      - redis-cli
+      - ping
       interval: 5s
       timeout: 3s
       retries: 10
@@ -107,33 +110,61 @@ services:
       FF_DB__PG__PASSWORD: ${POSTGRES_PASSWORD}
       FF_DB__PG__DATABASE: ${POSTGRES_DB}
       FF_REDIS__HOST: redis
+      DOMAIN: ${FLOWFUSE_DOMAIN:-${TAILSCALE_HOSTNAME}.ts.net}
+      FF_DRIVER__TYPE: docker
+      FF_DRIVER__OPTIONS__SOCKET: /var/run/docker.sock
     volumes:
-      - flowfuse-data:/var/lib/flowfuse
+    - flowfuse-data:/var/lib/flowfuse
+    - /var/run/docker.sock:/var/run/docker.sock:ro
     ports:
-      - "3000:3000"
-
+    - 3000:3000
     networks:
-      - automation
+    - automation
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:3000/ || exit 1
       interval: 5s
       timeout: 3s
       retries: 10
   node-red:
     image: nodered/node-red:3.1
+    hostname: node-red-standalone
+    container_name: node-red-standalone
     environment:
-      NODE_RED_ENABLE_PROJECTS: "true"
+      NODE_RED_ENABLE_PROJECTS: 'true'
     volumes:
-      - node-red-data:/data
+    - node-red-data:/data
     ports:
-      - "1880:1880"
-
+    - 1880:1880
     networks:
-      - automation
+    - automation
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:1880/ || exit 1"]
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:1880/ || exit 1
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  node-red-flowfuse-test:
+    image: nodered/node-red:3.1
+    hostname: node-red-flowfuse-test
+    container_name: node-red-flowfuse-test
+    environment:
+      NODE_RED_ENABLE_PROJECTS: 'true'
+    volumes:
+    - node-red-flowfuse-test-data:/data
+    ports:
+    - 1881:1880
+    networks:
+    - automation
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:1880/ || exit 1
       interval: 5s
       timeout: 3s
       retries: 10
@@ -145,28 +176,27 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - "1885:1883"
-      - "8885:8883"
-      - "9000:9000"
-      - "9001:9001"
-      - "4840:4840"
-      - "4000:4000"
+    - 1885:1883
+    - 8885:8883
+    - 9000:9000
+    - 9001:9001
+    - 4840:4840
+    - 4000:4000
     restart: unless-stopped
     volumes:
-      # Option 1: Use named volume (default)
-      - monstermq-config:/app/config
-      # Option 2: Mount local config file (uncomment to use)
-      # - ./config/monstermq-config.yaml:/app/config/config.yaml:ro
-      - monstermq-data:/app/data
-      - monstermq-logs:/app/logs
+    - monstermq-config:/app/config
+    - monstermq-data:/app/data
+    - monstermq-logs:/app/logs
     networks:
-      - automation
+    - automation
     healthcheck:
-      test: ["CMD-SHELL", "nc -z localhost 1883 || (wget -qO- http://localhost:4000/graphql 2>/dev/null | grep -q 'graphql' && exit 0 || exit 1)"]
+      test:
+      - CMD-SHELL
+      - nc -z localhost 1883 || (wget -qO- http://localhost:4000/graphql 2>/dev/null
+        | grep -q 'graphql' && exit 0 || exit 1)
       interval: 5s
       timeout: 3s
       retries: 10
-
   hivemq:
     image: hivemq/hivemq-ce:latest
     environment:
@@ -174,50 +204,204 @@ services:
       HIVEMQ_USER: ${HIVEMQ_USER}
       HIVEMQ_PASSWORD: ${HIVEMQ_PASSWORD}
     volumes:
-      - hivemq-data:/opt/hivemq/data
+    - hivemq-data:/opt/hivemq/data
     ports:
-      - "1883:1883"
-
+    - 1883:1883
     networks:
-      - automation
+    - automation
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "nc -z localhost 1883"]
+      test:
+      - CMD-SHELL
+      - nc -z localhost 1883
       interval: 5s
       timeout: 3s
       retries: 10
   hivemq-edge:
     image: hivemq/hivemq-edge:latest
     volumes:
-      - hivemq-edge-data:/opt/hivemq-edge/data
+    - hivemq-edge-data:/opt/hivemq-edge/data
     ports:
-      - "1884:1883"
-
+    - 1884:1883
     networks:
-      - automation
+    - automation
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "nc -z localhost 1883"]
+      test:
+      - CMD-SHELL
+      - nc -z localhost 1883
       interval: 5s
       timeout: 3s
       retries: 10
   ignition:
     image: kcollins/ignition:8.1
     environment:
-      ACCEPT_EULA: "Y"
+      ACCEPT_EULA: Y
     volumes:
-      - ignition-data:/usr/local/share/ignition/data
+    - ignition-data:/usr/local/share/ignition/data
     ports:
-      - "8088:8088"
-
+    - 8088:8088
     networks:
-      - automation
+    - automation
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "nc -z localhost 8088 || (wget -qO- http://localhost:8088/main/system/health 2>/dev/null | grep -q 'health' && exit 0 || exit 1)"]
+      test:
+      - CMD-SHELL
+      - nc -z localhost 8088 || (wget -qO- http://localhost:8088/main/system/health
+        2>/dev/null | grep -q 'health' && exit 0 || exit 1)
       interval: 5s
       timeout: 3s
       retries: 10
+  timebase-historian:
+    image: timebase/historian:latest
+    hostname: historian
+    container_name: historian
+    ports:
+    - 4511:4511
+    - 4512:4512
+    restart: unless-stopped
+    volumes:
+    - timebase-historian:/historian
+    environment:
+    - Settings=/historian/settings
+    - Data=/historian/data
+    - Logs=/historian/logs
+    networks:
+    - automation
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - nc -z localhost 4511
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  timebase-explorer:
+    image: timebase/explorer:latest
+    hostname: explorer
+    container_name: explorer
+    ports:
+    - 4531:4531
+    - 4532:4532
+    restart: unless-stopped
+    volumes:
+    - timebase-explorer:/explorer
+    environment:
+    - Settings=/explorer/settings
+    - Config=/explorer/config
+    - Data=/explorer/data
+    - Logs=/explorer/logs
+    networks:
+    - automation
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - nc -z localhost 4531
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  timebase-simulator:
+    image: timebase/collector:latest
+    hostname: simulator
+    container_name: simulator
+    ports:
+    - 4521:4521
+    - 4522:4522
+    restart: unless-stopped
+    volumes:
+    - timebase-simulator:/simulator
+    environment:
+    - Active=false
+    - Settings=/simulator/settings
+    - Config=/simulator/config
+    - Data=/simulator/data
+    - Logs=/simulator/logs
+    networks:
+    - automation
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - nc -z localhost 4521
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  timebase-opcua:
+    image: timebase/collector:latest
+    hostname: opcua
+    container_name: opcua
+    ports:
+    - 4523:4521
+    - 4524:4522
+    restart: unless-stopped
+    volumes:
+    - timebase-opcua:/opcua
+    environment:
+    - Active=false
+    - Settings=/opcua/settings
+    - Config=/opcua/config
+    - Data=/opcua/data
+    - Logs=/opcua/logs
+    networks:
+    - automation
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - nc -z localhost 4521
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  timebase-mqtt:
+    image: timebase/collector:latest
+    hostname: mqtt
+    container_name: mqtt
+    ports:
+    - 4525:4521
+    - 4526:4522
+    restart: unless-stopped
+    volumes:
+    - timebase-mqtt:/mqtt
+    environment:
+    - Active=false
+    - Settings=/mqtt/settings
+    - Config=/mqtt/config
+    - Data=/mqtt/data
+    - Logs=/mqtt/logs
+    networks:
+    - automation
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - nc -z localhost 4521
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  timebase-sparkplugb:
+    image: timebase/collector:latest
+    hostname: sparkplugb
+    container_name: sparkplugb
+    ports:
+    - 4527:4521
+    - 4528:4522
+    restart: unless-stopped
+    volumes:
+    - timebase-sparkplugb:/sparkplugb
+    environment:
+    - Active=false
+    - Settings=/sparkplugb/settings
+    - Config=/sparkplugb/config
+    - Data=/sparkplugb/data
+    - Logs=/sparkplugb/logs
+    networks:
+    - automation
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - nc -z localhost 4521
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  monstermq-config: null
+  monstermq-data: null
+  monstermq-logs: null
   influxdb:
     image: influxdb:2.7
     environment:
@@ -228,16 +412,17 @@ services:
       DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET}
       DOCKER_INFLUXDB_INIT_RETENTION: ${INFLUXDB_RETENTION}
     volumes:
-      - influxdb-data:/var/lib/influxdb2
-      - influxdb-config:/etc/influxdb2
+    - influxdb-data:/var/lib/influxdb2
+    - influxdb-config:/etc/influxdb2
     ports:
-      - "9086:8086"
-
+    - 9086:8086
     networks:
-      - automation
+    - automation
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8086/health || exit 1"]
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:8086/health || exit 1
       interval: 5s
       timeout: 3s
       retries: 10
@@ -247,15 +432,16 @@ services:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
     volumes:
-      - grafana-data:/var/lib/grafana
+    - grafana-data:/var/lib/grafana
     ports:
-      - "9090:3000"
-
+    - 9090:3000
     networks:
-      - automation
+    - automation
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/login || exit 1"]
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:3000/login || exit 1
       interval: 5s
       timeout: 3s
       retries: 10
@@ -263,16 +449,17 @@ services:
     image: portainer/portainer-ce:latest
     command: -H unix:///var/run/docker.sock
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - portainer-data:/data
+    - /var/run/docker.sock:/var/run/docker.sock
+    - portainer-data:/data
     ports:
-      - "9443:9443"
-
+    - 9443:9443
     networks:
-      - automation
+    - automation
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:9443/api/status || exit 1"]
+      test:
+      - CMD-SHELL
+      - wget -qO- http://localhost:9443/api/status || exit 1
       interval: 5s
       timeout: 3s
       retries: 10
@@ -280,162 +467,25 @@ networks:
   automation:
     driver: bridge
 volumes:
-  tailscale-state:
-  postgres-data:
-  redis-data:
-  flowfuse-data:
-  node-red-data:
-  monstermq-config:
-  monstermq-log:
-  monstermq-security:
-  hivemq-data:
-  hivemq-edge-data:
-  ignition-data:
-  influxdb-data:
-  influxdb-config:
-  grafana-data:
-  timebase-historian:
-    image: timebase/historian:latest
-    hostname: historian
-    container_name: historian
-    ports:
-      - "4511:4511"
-      - "4512:4512"
-    restart: unless-stopped
-    volumes:
-      - timebase-historian:/historian
-    environment:
-      - Settings=/historian/settings
-      - Data=/historian/data
-      - Logs=/historian/logs
-    networks:
-      - automation
-    healthcheck:
-      test: ["CMD-SHELL", "nc -z localhost 4511"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
-  timebase-explorer:
-    image: timebase/explorer:latest
-    hostname: explorer
-    container_name: explorer
-    ports:
-      - "4531:4531"
-      - "4532:4532"
-    restart: unless-stopped
-    volumes:
-      - timebase-explorer:/explorer
-    environment:
-      - Settings=/explorer/settings
-      - Config=/explorer/config
-      - Data=/explorer/data
-      - Logs=/explorer/logs
-    networks:
-      - automation
-    healthcheck:
-      test: ["CMD-SHELL", "nc -z localhost 4531"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
-  timebase-simulator:
-    image: timebase/collector:latest
-    hostname: simulator
-    container_name: simulator
-    ports:
-      - "4521:4521"
-      - "4522:4522"
-    restart: unless-stopped
-    volumes:
-      - timebase-simulator:/simulator
-    environment:
-      - Active=false
-      - Settings=/simulator/settings
-      - Config=/simulator/config
-      - Data=/simulator/data
-      - Logs=/simulator/logs
-    networks:
-      - automation
-    healthcheck:
-      test: ["CMD-SHELL", "nc -z localhost 4521"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
-  timebase-opcua:
-    image: timebase/collector:latest
-    hostname: opcua
-    container_name: opcua
-    ports:
-      - "4523:4521"
-      - "4524:4522"
-    restart: unless-stopped
-    volumes:
-      - timebase-opcua:/opcua
-    environment:
-      - Active=false
-      - Settings=/opcua/settings
-      - Config=/opcua/config
-      - Data=/opcua/data
-      - Logs=/opcua/logs
-    networks:
-      - automation
-    healthcheck:
-      test: ["CMD-SHELL", "nc -z localhost 4521"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
-  timebase-mqtt:
-    image: timebase/collector:latest
-    hostname: mqtt
-    container_name: mqtt
-    ports:
-      - "4525:4521"
-      - "4526:4522"
-    restart: unless-stopped
-    volumes:
-      - timebase-mqtt:/mqtt
-    environment:
-      - Active=false
-      - Settings=/mqtt/settings
-      - Config=/mqtt/config
-      - Data=/mqtt/data
-      - Logs=/mqtt/logs
-    networks:
-      - automation
-    healthcheck:
-      test: ["CMD-SHELL", "nc -z localhost 4521"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
-  timebase-sparkplugb:
-    image: timebase/collector:latest
-    hostname: sparkplugb
-    container_name: sparkplugb
-    ports:
-      - "4527:4521"
-      - "4528:4522"
-    restart: unless-stopped
-    volumes:
-      - timebase-sparkplugb:/sparkplugb
-    environment:
-      - Active=false
-      - Settings=/sparkplugb/settings
-      - Config=/sparkplugb/config
-      - Data=/sparkplugb/data
-      - Logs=/sparkplugb/logs
-    networks:
-      - automation
-    healthcheck:
-      test: ["CMD-SHELL", "nc -z localhost 4521"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
-  monstermq-config:
-  monstermq-data:
-  monstermq-logs:
-  portainer-data:
+  tailscale-state: null
+  postgres-data: null
+  redis-data: null
+  flowfuse-data: null
+  node-red-data: null
+  node-red-flowfuse-test-data: null
+  monstermq-config: null
+  monstermq-log: null
+  monstermq-security: null
+  hivemq-data: null
+  hivemq-edge-data: null
+  ignition-data: null
+  influxdb-data: null
+  influxdb-config: null
+  grafana-data: null
+  portainer-data: null
+  timebase-historian: {}
+  timebase-explorer: {}
+  timebase-simulator: {}
+  timebase-opcua: {}
+  timebase-mqtt: {}
+  timebase-sparkplugb: {}
