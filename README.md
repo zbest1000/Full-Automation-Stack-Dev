@@ -9,7 +9,7 @@ This stack provides a comprehensive set of industrial automation and IoT tools:
 - **Flow Automation**: Node-RED and FlowFuse for visual flow programming
 - **MQTT Brokers**: HiveMQ CE, HiveMQ Edge, and MonsterMQ for messaging
 - **SCADA/IIoT**: Inductive Automation Ignition gateway
-- **Time-Series Data**: TimeBase and InfluxDB for historical data storage
+- **Time-Series Data**: TimeBase (historian, explorer, collectors) and InfluxDB for historical data storage
 - **Visualization**: Grafana for dashboards and monitoring
 - **Data Storage**: PostgreSQL and Redis for application data
 - **Networking**: Tailscale sidecar for secure, zero-trust remote access
@@ -56,8 +56,12 @@ All sensitive values are provided via environment variables:
 | **HiveMQ Edge** | `hivemq/hivemq-edge:latest` | Edge MQTT gateway | `hivemq-edge-data` |
 | **MonsterMQ** | `rocworks/monstermq:latest` | Multi-protocol messaging hub | `monstermq-config`, `monstermq-log`, `monstermq-security` |
 | **Ignition** | `kcollins/ignition:8.1` | SCADA/IIoT gateway | `ignition-data` |
-| **TimeBase** | `finos/timebase-server:6.1` | FINOS time-series database | `timebase-data` |
-| **TimeBase Historian** | `finos/timebase-server:6.1` | Secondary TimeBase node | `timebase-historian-data` |
+| **TimeBase Historian** | `timebase/historian:latest` | TimeBase historian service | `timebase-historian` |
+| **TimeBase Explorer** | `timebase/explorer:latest` | TimeBase explorer UI | `timebase-explorer` |
+| **TimeBase Simulator** | `timebase/collector:latest` | Data simulator collector | `timebase-simulator` |
+| **TimeBase OPC UA** | `timebase/collector:latest` | OPC UA collector | `timebase-opcua` |
+| **TimeBase MQTT** | `timebase/collector:latest` | MQTT collector | `timebase-mqtt` |
+| **TimeBase SparkPlug B** | `timebase/collector:latest` | SparkPlug B collector | `timebase-sparkplugb` |
 | **InfluxDB** | `influxdb:2.7` | Time-series database | `influxdb-data`, `influxdb-config` |
 | **Grafana** | `grafana/grafana:10.4.3` | Visualization platform | `grafana-data` |
 | **PostgreSQL** | `postgres:15-alpine` | Relational database | `postgres-data` |
@@ -96,10 +100,18 @@ All services are accessible via Tailscale on the following ports:
 | `8885` | MonsterMQ MQTT/TLS | `monstermq:8883` | MQTT over TLS |
 | `9000` | MonsterMQ WebSocket | `monstermq:9000` | WebSocket |
 | `9001` | MonsterMQ WebSocket Secure | `monstermq:9001` | WSS |
-| `9002` | TimeBase Web Admin | `timebase:8011` | HTTP |
-| `9003` | TimeBase Message Endpoint | `timebase:8013` | TCP |
-| `9004` | TimeBase Historian Admin | `timebase-historian:8011` | HTTP |
-| `9005` | TimeBase Historian Endpoint | `timebase-historian:8013` | TCP |
+| `4511` | TimeBase Historian | `historian:4511` | TCP |
+| `4512` | TimeBase Historian | `historian:4512` | TCP |
+| `4531` | TimeBase Explorer | `explorer:4531` | HTTP |
+| `4532` | TimeBase Explorer | `explorer:4532` | TCP |
+| `4521` | TimeBase Simulator | `simulator:4521` | TCP |
+| `4522` | TimeBase Simulator | `simulator:4522` | TCP |
+| `4523` | TimeBase OPC UA | `opcua:4521` | TCP |
+| `4524` | TimeBase OPC UA | `opcua:4522` | TCP |
+| `4525` | TimeBase MQTT | `mqtt:4521` | TCP |
+| `4526` | TimeBase MQTT | `mqtt:4522` | TCP |
+| `4527` | TimeBase SparkPlug B | `sparkplugb:4521` | TCP |
+| `4528` | TimeBase SparkPlug B | `sparkplugb:4522` | TCP |
 | `9086` | InfluxDB | `influxdb:8086` | HTTP |
 | `9090` | Grafana | `grafana:3000` | HTTP |
 | `9443` | Portainer (optional) | `portainer:9443` | HTTPS |
@@ -122,10 +134,18 @@ All services are also accessible from the host machine on the following ports:
 | `8885` | MonsterMQ MQTT/TLS | `8883` | MQTT over TLS |
 | `9000` | MonsterMQ WebSocket | `9000` | WebSocket |
 | `9001` | MonsterMQ WebSocket Secure | `9001` | WSS |
-| `9002` | TimeBase Web Admin | `8011` | HTTP |
-| `9003` | TimeBase Message Endpoint | `8013` | TCP |
-| `9004` | TimeBase Historian Admin | `8011` | HTTP |
-| `9005` | TimeBase Historian Endpoint | `8013` | TCP |
+| `4511` | TimeBase Historian | `4511` | TCP |
+| `4512` | TimeBase Historian | `4512` | TCP |
+| `4531` | TimeBase Explorer | `4531` | HTTP |
+| `4532` | TimeBase Explorer | `4532` | TCP |
+| `4521` | TimeBase Simulator | `4521` | TCP |
+| `4522` | TimeBase Simulator | `4522` | TCP |
+| `4523` | TimeBase OPC UA | `4521` | TCP |
+| `4524` | TimeBase OPC UA | `4522` | TCP |
+| `4525` | TimeBase MQTT | `4521` | TCP |
+| `4526` | TimeBase MQTT | `4522` | TCP |
+| `4527` | TimeBase SparkPlug B | `4521` | TCP |
+| `4528` | TimeBase SparkPlug B | `4522` | TCP |
 | `9086` | InfluxDB | `8086` | HTTP |
 | `9090` | Grafana | `3000` | HTTP |
 | `9443` | Portainer (optional) | `9443` | HTTPS |
@@ -309,11 +329,26 @@ All services include health checks with the following configuration:
 - **Persistent Storage**: `/usr/local/share/ignition/data` volume
 - **Access**: `http://<tailscale-host>:8088`
 
-### TimeBase
+### TimeBase Services
 
-- **Heap Size**: 2GB (configurable)
-- **Persistent Storage**: `/timebase` volume
-- **Access**: Admin `http://<tailscale-host>:9002`, Messages `tcp://<tailscale-host>:9003`
+The stack includes a complete TimeBase ecosystem:
+
+- **TimeBase Historian**: Main historian service for time-series data storage
+  - **Ports**: `4511`, `4512` (TCP)
+  - **Persistent Storage**: `timebase-historian` volume
+  - **Access**: `tcp://<host>:4511` or via Tailscale
+
+- **TimeBase Explorer**: Web UI for exploring TimeBase data
+  - **Ports**: `4531` (HTTP), `4532` (TCP)
+  - **Persistent Storage**: `timebase-explorer` volume
+  - **Access**: `http://<host>:4531` or via Tailscale
+
+- **TimeBase Collectors**: Data collection services (disabled by default, set `Active=true` to enable)
+  - **Simulator**: Data simulator collector (ports `4521`, `4522`)
+  - **OPC UA**: OPC UA protocol collector (ports `4523`, `4524`)
+  - **MQTT**: MQTT protocol collector (ports `4525`, `4526`)
+  - **SparkPlug B**: SparkPlug B protocol collector (ports `4527`, `4528`)
+  - **Persistent Storage**: Individual volumes for each collector
 
 ### InfluxDB 2.x
 
@@ -495,8 +530,12 @@ flowchart LR
     HME[HiveMQ Edge<br/>:1883]
     IG[Ignition<br/>:8088]
     MQ[MonsterMQ<br/>1883/8883/9000/9001<br/>4840/4000]
-    TB[TimeBase<br/>:8011/:8013]
-    TH[TimeBase Historian<br/>:8011/:8013]
+    TBH[TimeBase Historian<br/>:4511/:4512]
+    TBE[TimeBase Explorer<br/>:4531/:4532]
+    TBS[TimeBase Simulator<br/>:4521/:4522]
+    TBO[TimeBase OPC UA<br/>:4523/:4524]
+    TBM[TimeBase MQTT<br/>:4525/:4526]
+    TBSP[TimeBase SparkPlug B<br/>:4527/:4528]
     IF[InfluxDB<br/>:8086]
     GF[Grafana<br/>:3000]
     PG[PostgreSQL<br/>:5432]
@@ -515,10 +554,18 @@ flowchart LR
   TS -->|serve tcp 4840| MQ
   TS -->|serve tcp 4000| MQ
   TS -->|serve tcp 8088| IG
-  TS -->|serve tcp 9002| TB
-  TS -->|serve tcp 9003| TB
-  TS -->|serve tcp 9004| TH
-  TS -->|serve tcp 9005| TH
+  TS -->|serve tcp 4511| TBH
+  TS -->|serve tcp 4512| TBH
+  TS -->|serve tcp 4531| TBE
+  TS -->|serve tcp 4532| TBE
+  TS -->|serve tcp 4521| TBS
+  TS -->|serve tcp 4522| TBS
+  TS -->|serve tcp 4523| TBO
+  TS -->|serve tcp 4524| TBO
+  TS -->|serve tcp 4525| TBM
+  TS -->|serve tcp 4526| TBM
+  TS -->|serve tcp 4527| TBSP
+  TS -->|serve tcp 4528| TBSP
   TS -->|serve tcp 9086| IF
   TS -->|serve tcp 9090| GF
   TS -->|serve tcp 5432| PG
