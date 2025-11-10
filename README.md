@@ -572,6 +572,10 @@ COMPOSE_PROJECT_NAME=my-stack ./backup.sh
 **Volumes Backed Up:**
 - All persistent volumes (tailscale-state, postgres-data, redis-data, flowfuse-data, node-red-a-data, node-red-b-data, monstermq-config, monstermq-data, hivemq-data, hivemq-edge-data, ignition-data, timebase-*, influxdb-*, grafana-data, portainer-data, dnsmasq-config)
 
+**External Backup Integration:**
+- Backups created by `backup.sh` can be easily copied to external storage
+- See [External Backup Methods](#external-backup-methods) section for detailed instructions on syncing backups to external storage, cloud services, or remote servers
+
 ### Restore Script (`restore.sh`)
 
 Restore volumes from a backup:
@@ -666,6 +670,211 @@ docker compose up -d
 Use the provided `restore.sh` script (see Utility Scripts section above) to restore volumes from a backup.
 
 **Warning**: Restore will overwrite existing volumes. Always backup current data first!
+
+### Volume Storage Locations
+
+Docker named volumes are stored on the host filesystem. The exact location depends on your Docker installation:
+
+#### Finding Volume Paths
+
+```bash
+# Get the mount point for a specific volume
+docker volume inspect automation-stack_postgres-data
+
+# List all volumes with their mount points
+docker volume ls | grep automation-stack | while read -r vol; do
+  echo "=== $vol ==="
+  docker volume inspect "$vol" | grep -A 5 Mountpoint
+done
+
+# Quick path lookup for a volume
+docker volume inspect automation-stack_postgres-data --format '{{ .Mountpoint }}'
+```
+
+#### Default Volume Locations
+
+**Linux:**
+- **Default location**: `/var/lib/docker/volumes/`
+- **Full path example**: `/var/lib/docker/volumes/automation-stack_postgres-data/_data`
+
+**macOS (Docker Desktop):**
+- **Default location**: `~/Library/Containers/com.docker.docker/Data/vms/0/data/docker/volumes/`
+- **Note**: Access requires Docker Desktop VM access or using Docker commands
+
+**Windows (Docker Desktop):**
+- **Default location**: `\\wsl$\docker-desktop-data\data\docker\volumes\`
+- **WSL2 path**: `/var/lib/docker/volumes/` (within WSL2)
+
+**Custom Docker Root:**
+- If Docker uses a custom root directory (set via `--data-root`), volumes are stored at `{data-root}/volumes/`
+
+### External Backup Methods
+
+To ensure volumes are backed up externally (outside of Docker), you have several options:
+
+#### Method 1: Direct File System Backup
+
+Backup volumes directly from their host filesystem paths:
+
+```bash
+# Find volume path
+VOLUME_PATH=$(docker volume inspect automation-stack_postgres-data --format '{{ .Mountpoint }}')
+
+# Backup using tar (requires root or Docker group access)
+sudo tar czf /external/backup/postgres-data-$(date +%Y%m%d).tar.gz -C "$VOLUME_PATH" .
+
+# Or using rsync for incremental backups
+sudo rsync -av "$VOLUME_PATH/" /external/backup/postgres-data/
+```
+
+**Note**: Direct filesystem access requires appropriate permissions (root or Docker group membership).
+
+#### Method 2: Using Docker Volume Backup Script
+
+The provided `backup.sh` script creates backups that can be copied externally:
+
+```bash
+# Run backup to local directory
+./backup.sh
+
+# Copy backups to external storage
+rsync -av ./backups/ /external/backup/automation-stack/
+
+# Or use scp for remote backup
+scp -r ./backups/ user@backup-server:/backups/automation-stack/
+
+# Or use cloud storage tools (rclone, s3cmd, etc.)
+rclone copy ./backups/ remote:backups/automation-stack/
+```
+
+#### Method 3: Scheduled External Backups
+
+Set up automated external backups using cron or systemd timers:
+
+**Cron Example:**
+```bash
+# Edit crontab
+crontab -e
+
+# Add daily backup at 2 AM, then sync to external storage
+0 2 * * * cd /path/to/stack && ./backup.sh && rsync -av ./backups/ /external/backup/automation-stack/
+```
+
+**Systemd Timer Example:**
+Create `/etc/systemd/system/automation-stack-backup.service`:
+```ini
+[Unit]
+Description=Automation Stack Backup
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/path/to/stack
+ExecStart=/path/to/stack/backup.sh
+ExecStartPost=/usr/bin/rsync -av /path/to/stack/backups/ /external/backup/automation-stack/
+```
+
+Create `/etc/systemd/system/automation-stack-backup.timer`:
+```ini
+[Unit]
+Description=Daily Automation Stack Backup
+Requires=automation-stack-backup.service
+
+[Timer]
+OnCalendar=daily
+OnCalendar=02:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+Enable with:
+```bash
+sudo systemctl enable automation-stack-backup.timer
+sudo systemctl start automation-stack-backup.timer
+```
+
+#### Method 4: Volume Driver Plugins
+
+Use Docker volume plugins that support external storage:
+
+- **Rex-Ray**: Supports various storage backends (AWS EBS, GCE PD, etc.)
+- **Local Persist**: Allows bind mounts with external paths
+- **Cloud Storage Plugins**: Direct integration with cloud storage
+
+**Example with bind mounts** (modify `docker-compose.yaml`):
+```yaml
+services:
+  postgres:
+    volumes:
+      - /external/storage/postgres-data:/var/lib/postgresql/data
+```
+
+**Note**: Bind mounts bypass Docker volume management but allow direct external access.
+
+#### Method 5: Container-Based External Backup
+
+Run a backup container that syncs to external storage:
+
+```yaml
+# Add to docker-compose.yaml (optional)
+services:
+  backup-sync:
+    image: alpine:latest
+    volumes:
+      - ./backups:/backups:ro
+      - /external/backup:/external:rw
+    command: >
+      sh -c "
+        while true; do
+          rsync -av --delete /backups/ /external/automation-stack/
+          sleep 3600
+        done
+      "
+    restart: unless-stopped
+```
+
+### Best Practices for External Backups
+
+1. **Automate Backups**: Use cron, systemd timers, or scheduled tasks
+2. **3-2-1 Rule**: 
+   - 3 copies of data
+   - 2 different media types
+   - 1 off-site backup
+3. **Test Restores**: Regularly verify backups can be restored
+4. **Retention Policy**: Keep multiple backup generations (daily, weekly, monthly)
+5. **Encryption**: Encrypt sensitive backups before external storage
+6. **Monitoring**: Set up alerts for backup failures
+7. **Documentation**: Document your backup and restore procedures
+
+### Verifying External Backups
+
+```bash
+# Check backup integrity
+tar -tzf /external/backup/automation-stack-backup_20240115/postgres-data.tar.gz > /dev/null && echo "OK" || echo "CORRUPT"
+
+# Verify backup age
+find /external/backup/automation-stack/ -name "*.tar.gz" -mtime -1
+
+# List all external backups
+ls -lh /external/backup/automation-stack/
+```
+
+### Volume Size and Disk Space
+
+Monitor volume sizes to ensure adequate disk space:
+
+```bash
+# Check volume sizes
+docker system df -v | grep automation-stack
+
+# Check disk space for volume storage
+df -h /var/lib/docker/volumes
+
+# Find largest volumes
+docker system df -v | grep automation-stack | sort -k3 -h
+```
 
 ## Updating Images
 

@@ -58,3 +58,8 @@ The stack includes utility scripts for common operations:
 - **`./restore.sh`** - Restore volumes from backup
 
 See the [Utility Scripts section in README.md](README.md#utility-scripts) for detailed usage.
+
+## Volume Management
+
+- **Volume Locations**: Docker volumes are stored on the host filesystem. See [Volume Storage Locations](README.md#volume-storage-locations) in README.md for details on finding volume paths.
+- **External Backups**: To ensure backups are stored externally, see [External Backup Methods](README.md#external-backup-methods) in README.md for multiple backup strategies including direct filesystem backup, scheduled sync, and cloud storage integration.
