@@ -23,11 +23,20 @@ GraphQL:
 DefaultStoreType: POSTGRES
 
 # PostgreSQL Configuration
+# Note: Uses the same PostgreSQL service from the stack (postgres:5432)
+# The database 'monstermq' will be created automatically if it doesn't exist
 Postgres:
   Url: jdbc:postgresql://postgres:5432/monstermq
   User: ${POSTGRES_USER}
   Pass: ${POSTGRES_PASSWORD}
   # Schema: monstermq    # Optional: custom PostgreSQL schema (defaults to 'public')
+  
+# Alternative: Use the same database as FlowFuse (if you prefer)
+# Postgres:
+#   Url: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+#   User: ${POSTGRES_USER}
+#   Pass: ${POSTGRES_PASSWORD}
+#   Schema: monstermq
 
 # Alternative: SQLite (for development/testing)
 # SQLite:

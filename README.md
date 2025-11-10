@@ -66,7 +66,7 @@ All sensitive values are provided via environment variables:
 | **TimeBase SparkPlug B** | `timebase/collector:latest` | SparkPlug B collector | `timebase-sparkplugb` |
 | **InfluxDB** | `influxdb:2.7` | Time-series database | `influxdb-data`, `influxdb-config` |
 | **Grafana** | `grafana/grafana:10.4.3` | Visualization platform | `grafana-data` |
-| **PostgreSQL** | `postgres:15-alpine` | Relational database | `postgres-data` |
+| **PostgreSQL** | `postgres:15-alpine` | Relational database (used by FlowFuse and MonsterMQ) | `postgres-data` |
 | **Redis** | `redis:7-alpine` | Cache/session store | `redis-data` |
 | **Portainer** | `portainer/portainer-ce:latest` | Container management (optional) | `portainer-data` |
 
@@ -317,8 +317,10 @@ All services include health checks with the following configuration:
 ### FlowFuse
 
 - **Backend**: PostgreSQL + Redis
+- **Database**: Uses PostgreSQL service (database specified in `POSTGRES_DB`, default: `flowfuse`)
+- **Note**: Shares the same PostgreSQL instance with MonsterMQ (different databases)
 - **Persistent Storage**: `/var/lib/flowfuse` volume
-- **Access**: `http://<tailscale-host>:80`
+- **Access**: `http://<tailscale-host>:80` or `http://localhost:3000`
 
 ### HiveMQ CE
 
@@ -331,9 +333,11 @@ All services include health checks with the following configuration:
 
 - **Multi-Protocol**: MQTT, MQTT/TLS, WebSocket, WSS, OPC UA, GraphQL
 - **Configuration**: Uses `config.yaml` file (mounted at `/app/config/config.yaml`)
-- **Database Support**: PostgreSQL, CrateDB, MongoDB, SQLite (configured in `config.yaml`)
+- **Database**: Uses the same PostgreSQL service from the stack (configured in `config.yaml`)
+- **Database Support**: PostgreSQL (default), CrateDB, MongoDB, SQLite (configured in `config.yaml`)
 - **Persistent Volumes**: Config (`/app/config`), data (`/app/data`), and logs (`/app/logs`)
 - **Access**: Multiple ports via Tailscale (see mapping table)
+- **Dependencies**: Waits for PostgreSQL to be healthy before starting
 
 **Configuration**: MonsterMQ requires a `config.yaml` file. You have two options:
 
@@ -362,10 +366,11 @@ WSS: 9001
 
 DefaultStoreType: POSTGRES
 
+# Uses the same PostgreSQL service from the stack
 Postgres:
   Url: jdbc:postgresql://postgres:5432/monstermq
-  User: ${POSTGRES_USER}
-  Pass: ${POSTGRES_PASSWORD}
+  User: ${POSTGRES_USER}  # Use the same POSTGRES_USER from .env
+  Pass: ${POSTGRES_PASSWORD}  # Use the same POSTGRES_PASSWORD from .env
   Schema: monstermq
 
 GraphQL:
@@ -376,6 +381,13 @@ OPCUA:
   Enabled: true
   Port: 4840
 ```
+
+**Important Notes**:
+- MonsterMQ uses the **same PostgreSQL service** as FlowFuse (the `postgres` container)
+- MonsterMQ creates its own database called `monstermq` automatically
+- Both services use the same `POSTGRES_USER` and `POSTGRES_PASSWORD` from your `.env` file
+- FlowFuse uses the database specified in `POSTGRES_DB` (default: `flowfuse`)
+- You can optionally configure MonsterMQ to use the same database as FlowFuse with a different schema (see the example config file)
 
 See the [MonsterMQ GitHub repository](https://github.com/vogler75/monster-mq) for complete configuration documentation.
 

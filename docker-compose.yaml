@@ -141,6 +141,9 @@ services:
     image: rocworks/monstermq:latest
     hostname: monstermq
     container_name: monstermq
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "1885:1883"
       - "8885:8883"
