@@ -6,7 +6,7 @@
       "title": "Industrial Automation Stack via Tailscale",
       "name": "industrial-automation-stack-tailscale",
       "description": "Complete industrial automation toolkit with Node-RED, FlowFuse, HiveMQ, Ignition, TimeBase, MonsterMQ, Grafana, InfluxDB, PostgreSQL, and Redis. All services are exposed via Tailscale sidecar and host ports for local access.",
-      "note": "\u26a0\ufe0f IMPORTANT: Provide a valid Tailscale auth key (TS_AUTHKEY) before deploying. Services are accessible both via Tailscale serve mappings and host ports. The Portainer service is included for bare Docker hosts but MUST be removed/disabled when deploying from an existing Portainer instance.",
+      "note": "\u26a0\ufe0f IMPORTANT: Provide a valid Tailscale auth key (TS_AUTHKEY) before deploying. Services are accessible both via Tailscale serve mappings and host ports. The Portainer service is included for bare Docker hosts but MUST be removed/disabled when deploying from an existing Portainer instance. For direct Docker Compose deployment, use the docker-compose.yaml file in the repository root.",
       "categories": [
         "automation",
         "iot",

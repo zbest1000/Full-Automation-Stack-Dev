@@ -1,0 +1,55 @@
+# MonsterMQ Configuration
+# Copy this file to the monstermq-config volume as config.yaml after deployment
+# Or mount it directly: - ./config/monstermq-config.yaml:/app/config/config.yaml
+
+# MQTT Ports
+TCP: 1883
+TCPS: 8883
+WS: 9000
+WSS: 9001
+
+# OPC UA
+OPCUA:
+  Enabled: true
+  Port: 4840
+
+# GraphQL API
+GraphQL:
+  Enabled: true
+  Port: 4000
+
+# Database Configuration
+# Choose one: POSTGRES, CRATEDB, MONGODB, SQLITE, MEMORY, HAZELCAST
+DefaultStoreType: POSTGRES
+
+# PostgreSQL Configuration
+Postgres:
+  Url: jdbc:postgresql://postgres:5432/monstermq
+  User: ${POSTGRES_USER}
+  Pass: ${POSTGRES_PASSWORD}
+  # Schema: monstermq    # Optional: custom PostgreSQL schema (defaults to 'public')
+
+# Alternative: SQLite (for development/testing)
+# SQLite:
+#   Path: "./data"
+
+# Alternative: CrateDB
+# CrateDB:
+#   Url: jdbc:postgresql://cratedb-host:5432/monstermq
+#   User: crate
+#   Pass: ""
+
+# Alternative: MongoDB
+# MongoDB:
+#   Url: mongodb://system:manager@mongo-host:27017
+#   Database: monstermq
+
+# MQTT Logging (optional)
+# Logging:
+#   MqttEnabled: true    # Publish logs to MQTT topics
+#   MqttLevel: INFO      # Minimum log level: INFO, WARNING, or SEVERE
+
+# Metrics (optional)
+# Metrics:
+#   Enabled: true
+#   CollectionInterval: 5   # seconds

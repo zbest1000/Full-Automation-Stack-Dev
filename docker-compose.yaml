@@ -136,7 +136,8 @@ services:
       test: ["CMD-SHELL", "wget -qO- http://localhost:1880/ || exit 1"]
       interval: 5s
       timeout: 3s
-      retries: 10  monstermq:
+      retries: 10
+  monstermq:
     image: rocworks/monstermq:latest
     hostname: monstermq
     container_name: monstermq
@@ -214,7 +215,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
-influxdb:
+  influxdb:
     image: influxdb:2.7
     environment:
       DOCKER_INFLUXDB_INIT_MODE: setup

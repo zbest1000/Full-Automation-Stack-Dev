@@ -166,6 +166,21 @@ http://localhost:1880
 mqtt://localhost:1883
 ```
 
+## Project Structure
+
+```
+.
+├── docker-compose.yaml          # Main Docker Compose file
+├── .env.example                 # Environment variables template
+├── .gitignore                   # Git ignore rules
+├── config/
+│   └── monstermq-config.yaml.example  # MonsterMQ configuration template
+├── portainer-template.json      # Portainer App Template (for Portainer deployment)
+├── templates/
+│   └── automation-stack-compose.yaml  # Legacy compose file location
+└── README.md                    # This file
+```
+
 ## Deployment
 
 ### Prerequisites
@@ -213,9 +228,16 @@ mqtt://localhost:1883
    # Edit .env with your values
    ```
 
-3. **Deploy with Docker Compose**:
+3. **Configure MonsterMQ** (optional, if using local config file):
    ```bash
-   docker compose -f templates/automation-stack-compose.yaml --env-file .env up -d
+   cp config/monstermq-config.yaml.example config/monstermq-config.yaml
+   # Edit config/monstermq-config.yaml with your database settings
+   # Then uncomment the config file mount in docker-compose.yaml
+   ```
+
+4. **Deploy with Docker Compose**:
+   ```bash
+   docker compose --env-file .env up -d
    ```
 
 ### Environment Variables
@@ -313,12 +335,25 @@ All services include health checks with the following configuration:
 - **Persistent Volumes**: Config (`/app/config`), data (`/app/data`), and logs (`/app/logs`)
 - **Access**: Multiple ports via Tailscale (see mapping table)
 
-**Configuration**: MonsterMQ requires a `config.yaml` file. After deployment, you need to:
-1. Access the `monstermq-config` volume
-2. Create `/app/config/config.yaml` with your database and service settings
-3. Restart the MonsterMQ container
+**Configuration**: MonsterMQ requires a `config.yaml` file. You have two options:
 
-Example `config.yaml`:
+**Option 1: Use local config file (recommended for development)**
+1. Copy the example: `cp config/monstermq-config.yaml.example config/monstermq-config.yaml`
+2. Edit `config/monstermq-config.yaml` with your settings
+3. Uncomment the config file mount in `docker-compose.yaml`:
+   ```yaml
+   volumes:
+     - ./config/monstermq-config.yaml:/app/config/config.yaml:ro
+   ```
+4. Deploy: `docker compose up -d`
+
+**Option 2: Use Docker volume (default)**
+1. Deploy the stack first
+2. Access the `monstermq-config` volume
+3. Create `/app/config/config.yaml` with your database and service settings
+4. Restart the MonsterMQ container
+
+Example `config.yaml` (see `config/monstermq-config.yaml.example` for full template):
 ```yaml
 TCP: 1883
 TCPS: 8883
