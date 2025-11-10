@@ -1,0 +1,82 @@
+# Docker Compose Override Example
+# 
+# This file demonstrates how to customize the automation stack for local development
+# or specific deployment scenarios without modifying the main docker-compose.yaml.
+#
+# Usage:
+#   1. Copy this file to docker-compose.override.yaml
+#   2. Uncomment and modify the sections you need
+#   3. Docker Compose will automatically merge this with docker-compose.yaml
+#
+# Note: docker-compose.override.yaml is automatically loaded by Docker Compose
+# and should NOT be committed to version control (add to .gitignore)
+
+version: '3.9'
+
+services:
+  # Example: Override Node-RED A to use a local directory for development
+  # node-red-a:
+  #   volumes:
+  #     - ./local-node-red-data:/data
+  #   environment:
+  #     - NODE_RED_CREDENTIAL_SECRET=local-dev-secret
+
+  # Example: Enable debug logging for FlowFuse
+  # flowfuse:
+  #   environment:
+  #     - DEBUG=*
+  #     - LOG_LEVEL=debug
+
+  # Example: Add resource limits for production
+  # postgres:
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '2'
+  #         memory: 2G
+  #       reservations:
+  #         cpus: '1'
+  #         memory: 1G
+
+  # Example: Mount local configuration files
+  # monstermq:
+  #   volumes:
+  #     - ./local-config/monstermq-config.yaml:/app/config/config.yaml:ro
+
+  # Example: Change port mappings for local development
+  # grafana:
+  #   ports:
+  #     - "3090:3000"  # Use different host port to avoid conflicts
+
+  # Example: Add additional environment variables
+  # influxdb:
+  #   environment:
+  #     - INFLUXDB_LOGGING_LEVEL=debug
+
+  # Example: Use a different image tag (e.g., for testing)
+  # node-red-b:
+  #   image: nodered/node-red:latest-minimal
+
+  # Example: Add custom health check
+  # custom-service:
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+
+  # Example: Add logging configuration
+  # all-services:
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
+
+  # Example: Override network configuration
+  # networks:
+  #   automation:
+  #     driver: bridge
+  #     ipam:
+  #       config:
+  #         - subnet: 172.20.0.0/16

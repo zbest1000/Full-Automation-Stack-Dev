@@ -9,6 +9,12 @@ config/monstermq-config.yaml
 # Docker volumes data (if using bind mounts)
 data/
 
+# Docker Compose overrides (local customizations)
+docker-compose.override.yaml
+
+# Backup directories
+backups/
+
 # IDE
 .vscode/
 .idea/

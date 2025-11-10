@@ -46,4 +46,15 @@
 - Configure MonsterMQ `config.yaml` if not done during setup
 - Access Grafana at `http://localhost:9090` to set up dashboards
 - Access Node-RED at `http://localhost:1880` to create flows
+- Check service status: `./status.sh`
 - See README.md for detailed documentation
+
+## Utility Scripts
+
+The stack includes utility scripts for common operations:
+
+- **`./status.sh`** - Quick health check and status overview
+- **`./backup.sh`** - Automated backup of all volumes
+- **`./restore.sh`** - Restore volumes from backup
+
+See the [Utility Scripts section in README.md](README.md#utility-scripts) for detailed usage.

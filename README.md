@@ -181,12 +181,17 @@ mqtt://localhost:1883
 ```
 .
 ├── docker-compose.yaml          # Main Docker Compose file
+├── docker-compose.override.example  # Example override file for local customizations
 ├── .env.example                 # Environment variables template
 ├── .gitignore                   # Git ignore rules
 ├── config/
 │   └── monstermq-config.yaml.example  # MonsterMQ configuration template
 ├── portainer-template.json      # Portainer App Template (for Portainer deployment)
-└── README.md                    # This file
+├── backup.sh                    # Automated volume backup script
+├── restore.sh                   # Volume restore script
+├── status.sh                    # Health check and status script
+├── README.md                    # This file
+└── QUICKSTART.md                # Quick deployment guide
 ```
 
 ## Deployment
@@ -500,11 +505,128 @@ To rotate your Tailscale auth key:
 5. **Revoke Old Key** (optional):
    - In Tailscale Admin Console, revoke the old auth key
 
+## Utility Scripts
+
+The stack includes several utility scripts for common operations:
+
+### Status Script (`status.sh`)
+
+Quick health check and status overview of all services:
+
+```bash
+./status.sh
+```
+
+The script displays:
+- Service status (running/stopped/restarting)
+- Health check status for each service
+- Container summary with ports
+- Tailscale connection status
+- Volume and network status
+- Resource usage (top 5 services)
+- Quick command reference
+
+**Example output:**
+```
+=== Automation Stack Status ===
+[INFO] Project: automation-stack
+[INFO] Date: 2024-01-15 10:30:00
+
+=== Service Status ===
+Core Services:
+  Database:              ✓ Running
+    Health: healthy
+  Cache:                 ✓ Running
+    Health: healthy
+...
+```
+
+### Backup Script (`backup.sh`)
+
+Automated backup of all Docker volumes:
+
+```bash
+# Run backup (creates timestamped backup in ./backups/)
+./backup.sh
+
+# Custom backup directory
+BACKUP_DIR=/path/to/backups ./backup.sh
+
+# Custom project name
+COMPOSE_PROJECT_NAME=my-stack ./backup.sh
+```
+
+**Features:**
+- Creates timestamped backup directories (e.g., `automation-stack-backup_20240115_103000`)
+- Backs up all 22 stack volumes automatically
+- Generates metadata files with backup information
+- Creates a `latest` symlink for easy access
+- Verifies backup file integrity
+- Shows backup summary and total size
+
+**Backup Location:**
+- Default: `./backups/automation-stack-backup_YYYYMMDD_HHMMSS/`
+- Each volume is saved as `{volume-name}.tar.gz`
+- Metadata file: `metadata.txt`
+
+**Volumes Backed Up:**
+- All persistent volumes (tailscale-state, postgres-data, redis-data, flowfuse-data, node-red-a-data, node-red-b-data, monstermq-config, monstermq-data, hivemq-data, hivemq-edge-data, ignition-data, timebase-*, influxdb-*, grafana-data, portainer-data, dnsmasq-config)
+
+### Restore Script (`restore.sh`)
+
+Restore volumes from a backup:
+
+```bash
+# Restore from latest backup
+./restore.sh ./backups/latest
+
+# Restore from specific backup
+./restore.sh ./backups/automation-stack-backup_20240101_120000
+
+# Custom project name
+COMPOSE_PROJECT_NAME=my-stack ./restore.sh ./backups/latest
+```
+
+**Features:**
+- Validates backup directory and metadata
+- Restores all volumes from backup files
+- Creates volumes if they don't exist
+- **Warning**: Overwrites existing volumes (requires confirmation)
+- Shows restore summary
+
+**Usage Notes:**
+- Always backup current data before restoring
+- The script requires explicit "yes" confirmation
+- After restore, restart the stack: `docker compose restart`
+- Symlinks (like `./backups/latest`) are automatically resolved
+
+### Docker Compose Override (`docker-compose.override.example`)
+
+Template for local customizations without modifying the main compose file:
+
+```bash
+# Copy the example
+cp docker-compose.override.example docker-compose.override.yaml
+
+# Edit as needed (uncomment and modify sections)
+nano docker-compose.override.yaml
+```
+
+**Common Use Cases:**
+- Mount local directories for development
+- Override environment variables
+- Add resource limits for production
+- Change port mappings
+- Enable debug logging
+- Use different image tags
+
+**Note:** `docker-compose.override.yaml` is automatically loaded by Docker Compose and should be added to `.gitignore` (not committed to version control).
+
 ## Backup and Restore
 
-### Backup Volumes
+### Manual Backup
 
-All persistent data is stored in Docker named volumes. To backup:
+All persistent data is stored in Docker named volumes. To manually backup:
 
 ```bash
 # List volumes
@@ -521,13 +643,17 @@ for volume in $(docker volume ls -q | grep automation-stack); do
 done
 ```
 
+### Automated Backup (Recommended)
+
+Use the provided `backup.sh` script (see Utility Scripts section above) for automated backups of all volumes.
+
 ### Restore Volumes
 
 ```bash
 # Stop the stack
 docker compose down
 
-# Restore a volume
+# Restore a volume manually
 docker run --rm -v automation-stack_postgres-data:/data -v $(pwd):/backup \
   alpine sh -c "cd /data && tar xzf /backup/postgres-data-backup.tar.gz"
 
@@ -535,12 +661,11 @@ docker run --rm -v automation-stack_postgres-data:/data -v $(pwd):/backup \
 docker compose up -d
 ```
 
-### Automated Backups
+### Automated Restore (Recommended)
 
-Consider using a backup solution like:
-- **Velero** for Kubernetes
-- **Docker volume backup scripts** with cron
-- **Portainer backup** feature (if using Portainer)
+Use the provided `restore.sh` script (see Utility Scripts section above) to restore volumes from a backup.
+
+**Warning**: Restore will overwrite existing volumes. Always backup current data first!
 
 ## Updating Images
 
