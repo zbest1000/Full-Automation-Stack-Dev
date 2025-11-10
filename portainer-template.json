@@ -1,0 +1,95 @@
+{
+  "version": "2",
+  "templates": [
+    {
+      "type": "stack",
+      "title": "Automation Stack via Tailscale",
+      "name": "automation-stack-tailscale",
+      "description": "Industrial automation toolkit featuring Node-RED, FlowFuse, HiveMQ, Ignition, TimeBase, Grafana, InfluxDB, Postgres, and Monster MQ. All services are exposed exclusively over a shared Tailscale sidecar.",
+      "note": "Provide a valid Tailscale auth key before deploying. All services listen only on the private Docker network and are reachable through Tailscale serve mappings.",
+      "categories": [
+        "automation",
+        "iot",
+        "network",
+        "monitoring"
+      ],
+      "platform": "linux",
+      "logo": "https://portainer-io-assets.s3.amazonaws.com/logos/portainer.png",
+      "env": [
+        {
+          "name": "TS_AUTHKEY",
+          "label": "Tailscale Auth Key",
+          "description": "Reusable or ephemeral auth key that allows the stack to join your tailnet.",
+          "default": ""
+        },
+        {
+          "name": "TAILSCALE_HOSTNAME",
+          "label": "Tailscale Hostname",
+          "description": "Optional hostname to register inside the tailnet.",
+          "default": "automation-stack"
+        },
+        {
+          "name": "POSTGRES_USER",
+          "label": "Postgres User",
+          "description": "Database user for the bundled Postgres service.",
+          "default": "flowfuse"
+        },
+        {
+          "name": "POSTGRES_PASSWORD",
+          "label": "Postgres Password",
+          "description": "Database password for the bundled Postgres service.",
+          "default": "flowfuse_password"
+        },
+        {
+          "name": "POSTGRES_DB",
+          "label": "Postgres Database",
+          "description": "Default database name for the bundled Postgres service.",
+          "default": "flowfuse"
+        },
+        {
+          "name": "GRAFANA_ADMIN_USER",
+          "label": "Grafana Admin User",
+          "description": "Initial admin username for Grafana.",
+          "default": "admin"
+        },
+        {
+          "name": "GRAFANA_ADMIN_PASSWORD",
+          "label": "Grafana Admin Password",
+          "description": "Initial admin password for Grafana.",
+          "default": "ChangeMe123!"
+        },
+        {
+          "name": "INFLUXDB_ADMIN_USER",
+          "label": "InfluxDB Admin User",
+          "description": "Bootstrap admin user for InfluxDB 2.x.",
+          "default": "admin"
+        },
+        {
+          "name": "INFLUXDB_ADMIN_PASSWORD",
+          "label": "InfluxDB Admin Password",
+          "description": "Bootstrap admin password for InfluxDB 2.x.",
+          "default": "ChangeMe123!"
+        },
+        {
+          "name": "INFLUXDB_BUCKET",
+          "label": "InfluxDB Bucket",
+          "description": "Default bucket name created during bootstrap.",
+          "default": "automation"
+        },
+        {
+          "name": "INFLUXDB_ORG",
+          "label": "InfluxDB Organization",
+          "description": "Default organization name created during bootstrap.",
+          "default": "automation"
+        },
+        {
+          "name": "INFLUXDB_RETENTION",
+          "label": "InfluxDB Retention (hours)",
+          "description": "Retention policy duration (in hours) for the bootstrap bucket.",
+          "default": "0"
+        }
+      ],
+      "composeFile": "version: '3.9'\nname: automation-stack\nservices:\n  tailscale:\n    image: tailscale/tailscale:stable\n    hostname: \"${TAILSCALE_HOSTNAME}\"\n    environment:\n      TS_AUTHKEY: ${TS_AUTHKEY}\n    volumes:\n      - tailscale-state:/var/lib/tailscale\n    networks:\n      - automation\n    command:\n      - /bin/sh\n      - -c\n      - |\n        if [ -z \"${TS_AUTHKEY}\" ]; then\n          echo 'TS_AUTHKEY must be provided' >&2\n          exit 1\n        fi\n        tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/tmp/tailscaled.sock --tun=userspace-networking &\n        until tailscale --socket=/tmp/tailscaled.sock status >/dev/null 2>&1; do\n          sleep 0.5\n        done\n        tailscale --socket=/tmp/tailscaled.sock up --authkey=${TS_AUTHKEY} --hostname=${TAILSCALE_HOSTNAME} --ssh\n        tailscale --socket=/tmp/tailscaled.sock serve reset\n        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 80 flowfuse:3000\n        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 1880 node-red:1880\n        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 1883 hivemq:1883\n        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 1884 hivemq-edge:1883\n        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 8080 hivemq:8080\n        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 8088 ignition:8088\n        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 8123 monster-mq:8080\n        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 9000 timebase:8011\n        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 9001 timebase:8013\n        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 9002 timebase-historian:8011\n        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 9003 timebase-historian:8013\n        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 9086 influxdb:8086\n        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 9090 grafana:3000\n        tailscale --socket=/tmp/tailscaled.sock serve --bg tcp 5432 postgres:5432\n        wait\n    restart: unless-stopped\n  postgres:\n    image: postgres:15-alpine\n    environment:\n      POSTGRES_USER: ${POSTGRES_USER}\n      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}\n      POSTGRES_DB: ${POSTGRES_DB}\n    volumes:\n      - postgres-data:/var/lib/postgresql/data\n    networks:\n      - automation\n    restart: unless-stopped\n  redis:\n    image: redis:7-alpine\n    command: redis-server --save 60 1 --loglevel warning\n    volumes:\n      - redis-data:/data\n    networks:\n      - automation\n    restart: unless-stopped\n  flowfuse:\n    image: flowfuse/flowfuse:latest\n    depends_on:\n      - postgres\n      - redis\n    environment:\n      FF_PROJECTS_DIR: /var/lib/flowfuse\n      FF_STORAGE__TYPE: localfs\n      FF_DB__CLIENT: pg\n      FF_DB__PG__HOST: postgres\n      FF_DB__PG__USER: ${POSTGRES_USER}\n      FF_DB__PG__PASSWORD: ${POSTGRES_PASSWORD}\n      FF_DB__PG__DATABASE: ${POSTGRES_DB}\n      FF_REDIS__HOST: redis\n    volumes:\n      - flowfuse-data:/var/lib/flowfuse\n    networks:\n      - automation\n    restart: unless-stopped\n  node-red:\n    image: nodered/node-red:3.1\n    environment:\n      NODE_RED_ENABLE_PROJECTS: 'true'\n    volumes:\n      - node-red-data:/data\n    networks:\n      - automation\n    restart: unless-stopped\n  monster-mq:\n    build:\n      context: https://github.com/vogler75/monster-mq.git\n    networks:\n      - automation\n    restart: unless-stopped\n  hivemq:\n    image: hivemq/hivemq-ce:2023.1\n    environment:\n      HIVEMQ_ALLOW_ANONYMOUS: 'true'\n    volumes:\n      - hivemq-data:/opt/hivemq/data\n    networks:\n      - automation\n    restart: unless-stopped\n  hivemq-edge:\n    image: hivemq/hivemq-edge:latest\n    volumes:\n      - hivemq-edge-data:/opt/hivemq-edge/data\n    networks:\n      - automation\n    restart: unless-stopped\n  ignition:\n    image: kcollins/ignition:8.1\n    environment:\n      GATEWAY_ADMIN_PASSWORD: ignitionAdmin42!\n    volumes:\n      - ignition-data:/usr/local/share/ignition/data\n    networks:\n      - automation\n    restart: unless-stopped\n  timebase:\n    image: finos/timebase-server:6.1\n    environment:\n      TB_HEAP: 2G\n    volumes:\n      - timebase-data:/timebase\n    networks:\n      - automation\n    restart: unless-stopped\n  timebase-historian:\n    image: finos/timebase-server:6.1\n    environment:\n      TB_HEAP: 2G\n    volumes:\n      - timebase-historian-data:/timebase\n    networks:\n      - automation\n    restart: unless-stopped\n  influxdb:\n    image: influxdb:2.7\n    environment:\n      DOCKER_INFLUXDB_INIT_MODE: setup\n      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUXDB_ADMIN_USER}\n      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_ADMIN_PASSWORD}\n      DOCKER_INFLUXDB_INIT_ORG: ${INFLUXDB_ORG}\n      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET}\n      DOCKER_INFLUXDB_INIT_RETENTION: ${INFLUXDB_RETENTION}\n    volumes:\n      - influxdb-data:/var/lib/influxdb2\n      - influxdb-config:/etc/influxdb2\n    networks:\n      - automation\n    restart: unless-stopped\n  grafana:\n    image: grafana/grafana:10.4.3\n    environment:\n      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}\n      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}\n    volumes:\n      - grafana-data:/var/lib/grafana\n    networks:\n      - automation\n    restart: unless-stopped\nnetworks:\n  automation:\n    driver: bridge\nvolumes:\n  tailscale-state:\n  postgres-data:\n  redis-data:\n  flowfuse-data:\n  node-red-data:\n  hivemq-data:\n  hivemq-edge-data:\n  ignition-data:\n  timebase-data:\n  timebase-historian-data:\n  influxdb-data:\n  influxdb-config:\n  grafana-data:\n"
+    }
+  ]
+}
