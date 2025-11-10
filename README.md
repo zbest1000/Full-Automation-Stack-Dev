@@ -352,24 +352,30 @@ See the [MonsterMQ GitHub repository](https://github.com/vogler75/monster-mq) fo
 
 ### TimeBase Services
 
-The stack includes a complete TimeBase ecosystem:
+The stack includes a complete TimeBase ecosystem. Each TimeBase service uses **two ports** by design:
+
+- **Port 1** (e.g., 4511, 4531, 4521): Control/Administration interface (HTTP for Explorer, TCP for others)
+- **Port 2** (e.g., 4512, 4532, 4522): Data/Messaging interface (TCP for data streaming)
+
+**Services:**
 
 - **TimeBase Historian**: Main historian service for time-series data storage
-  - **Ports**: `4511`, `4512` (TCP)
+  - **Ports**: `4511` (control), `4512` (data) - both TCP
   - **Persistent Storage**: `timebase-historian` volume
-  - **Access**: `tcp://<host>:4511` or via Tailscale
+  - **Access**: `tcp://<host>:4511` (control) or `tcp://<host>:4512` (data) or via Tailscale
 
 - **TimeBase Explorer**: Web UI for exploring TimeBase data
-  - **Ports**: `4531` (HTTP), `4532` (TCP)
+  - **Ports**: `4531` (HTTP - web UI), `4532` (TCP - data access)
   - **Persistent Storage**: `timebase-explorer` volume
-  - **Access**: `http://<host>:4531` or via Tailscale
+  - **Access**: `http://<host>:4531` (web UI) or via Tailscale
 
 - **TimeBase Collectors**: Data collection services (disabled by default, set `Active=true` to enable)
-  - **Simulator**: Data simulator collector (ports `4521`, `4522`)
-  - **OPC UA**: OPC UA protocol collector (ports `4523`, `4524`)
-  - **MQTT**: MQTT protocol collector (ports `4525`, `4526`)
-  - **SparkPlug B**: SparkPlug B protocol collector (ports `4527`, `4528`)
+  - **Simulator**: Data simulator collector (ports `4521` control, `4522` data)
+  - **OPC UA**: OPC UA protocol collector (ports `4523` control, `4524` data)
+  - **MQTT**: MQTT protocol collector (ports `4525` control, `4526` data)
+  - **SparkPlug B**: SparkPlug B protocol collector (ports `4527` control, `4528` data)
   - **Persistent Storage**: Individual volumes for each collector
+  - **Note**: Collectors internally use ports 4521/4522, but are mapped to unique host ports to avoid conflicts
 
 ### InfluxDB 2.x
 
