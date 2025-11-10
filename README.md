@@ -54,7 +54,7 @@ All sensitive values are provided via environment variables:
 | **FlowFuse** | `flowfuse/flowfuse:latest` | Collaborative Node-RED platform | `flowfuse-data` |
 | **HiveMQ CE** | `hivemq/hivemq-ce:latest` | Production MQTT broker | `hivemq-data` |
 | **HiveMQ Edge** | `hivemq/hivemq-edge:latest` | Edge MQTT gateway | `hivemq-edge-data` |
-| **MonsterMQ** | `rocworks/monstermq:latest` | Multi-protocol messaging hub | `monstermq-config`, `monstermq-log`, `monstermq-security` |
+| **MonsterMQ** | `rocworks/monstermq:latest` | Multi-protocol messaging hub | `monstermq-config`, `monstermq-data`, `monstermq-logs` |
 | **Ignition** | `kcollins/ignition:8.1` | SCADA/IIoT gateway | `ignition-data` |
 | **TimeBase Historian** | `timebase/historian:latest` | TimeBase historian service | `timebase-historian` |
 | **TimeBase Explorer** | `timebase/explorer:latest` | TimeBase explorer UI | `timebase-explorer` |
@@ -257,16 +257,10 @@ HIVEMQ_ALLOW_ANONYMOUS=true
 HIVEMQ_USER=
 HIVEMQ_PASSWORD=
 
-# MonsterMQ
-MONSTERMQ_DB_URL=postgresql://postgres:5432/monstermq
-MONSTERMQ_DB_USER=monstermq
-MONSTERMQ_DB_PASSWORD=your_secure_password
-MONSTERMQ_TCP_PORT=1883
-MONSTERMQ_TLS_PORT=8883
-MONSTERMQ_WS_PORT=9000
-MONSTERMQ_WSS_PORT=9001
-MONSTERMQ_OPCUA_PORT=4840
-MONSTERMQ_GRAPHQL_PORT=4000
+# MonsterMQ Configuration
+# Note: MonsterMQ uses config.yaml file, not environment variables
+# Create config.yaml in the monstermq-config volume after deployment
+# See MonsterMQ service configuration section in README for example config.yaml
 ```
 
 **Security Note**: Never commit `.env` files to version control. Use secrets management in production.
@@ -319,9 +313,41 @@ All services include health checks with the following configuration:
 ### MonsterMQ
 
 - **Multi-Protocol**: MQTT, MQTT/TLS, WebSocket, WSS, OPC UA, GraphQL
-- **Database**: PostgreSQL (configurable via env)
-- **Persistent Volumes**: Config, log, and security directories
+- **Configuration**: Uses `config.yaml` file (mounted at `/app/config/config.yaml`)
+- **Database Support**: PostgreSQL, CrateDB, MongoDB, SQLite (configured in `config.yaml`)
+- **Persistent Volumes**: Config (`/app/config`), data (`/app/data`), and logs (`/app/logs`)
 - **Access**: Multiple ports via Tailscale (see mapping table)
+
+**Configuration**: MonsterMQ requires a `config.yaml` file. After deployment, you need to:
+1. Access the `monstermq-config` volume
+2. Create `/app/config/config.yaml` with your database and service settings
+3. Restart the MonsterMQ container
+
+Example `config.yaml`:
+```yaml
+TCP: 1883
+TCPS: 8883
+WS: 9000
+WSS: 9001
+
+DefaultStoreType: POSTGRES
+
+Postgres:
+  Url: jdbc:postgresql://postgres:5432/monstermq
+  User: ${POSTGRES_USER}
+  Pass: ${POSTGRES_PASSWORD}
+  Schema: monstermq
+
+GraphQL:
+  Enabled: true
+  Port: 4000
+
+OPCUA:
+  Enabled: true
+  Port: 4840
+```
+
+See the [MonsterMQ GitHub repository](https://github.com/vogler75/monster-mq) for complete configuration documentation.
 
 ### Ignition
 
