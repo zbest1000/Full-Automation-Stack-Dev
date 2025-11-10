@@ -1,6 +1,6 @@
 # Industrial Automation Stack via Tailscale
 
-A complete industrial automation toolkit deployed as a Docker Compose stack, with all services exposed exclusively through a Tailscale sidecar. No host ports are published—all access is via your Tailscale tailnet.
+A complete industrial automation toolkit deployed as a Docker Compose stack, with all services exposed via both Tailscale sidecar and host ports for local access.
 
 ## Architecture Overview
 
@@ -12,9 +12,11 @@ This stack provides a comprehensive set of industrial automation and IoT tools:
 - **Time-Series Data**: TimeBase and InfluxDB for historical data storage
 - **Visualization**: Grafana for dashboards and monitoring
 - **Data Storage**: PostgreSQL and Redis for application data
-- **Networking**: Tailscale sidecar for secure, zero-trust access
+- **Networking**: Tailscale sidecar for secure, zero-trust remote access
 
-All services communicate on a private Docker bridge network (`automation`). The Tailscale sidecar uses userspace networking only (`--tun=userspace-networking`) and exposes services via `tailscale serve` mappings. No Docker ports are published to the host.
+All services communicate on a private Docker bridge network (`automation`). Services are accessible both:
+- **Via Tailscale**: The Tailscale sidecar uses userspace networking only (`--tun=userspace-networking`) and exposes services via `tailscale serve` mappings for remote access
+- **Via Host Ports**: Docker port mappings allow local access from the host machine
 
 ## Security Model
 
@@ -22,14 +24,15 @@ All services communicate on a private Docker bridge network (`automation`). The 
 
 - **Userspace Networking**: The Tailscale sidecar runs with `--tun=userspace-networking`, requiring no kernel-level TUN device access
 - **No Subnet Routes**: The sidecar does not advertise subnet routes or act as an exit node
-- **Serve-Only Exposure**: Services are exposed via `tailscale serve tcp` mappings only
-- **No Host Ports**: Zero Docker port mappings—all traffic flows through Tailscale
+- **Serve-Only Exposure**: Services are exposed via `tailscale serve tcp` mappings for remote access
+- **Dual Access**: Services are accessible both via Tailscale (remote) and host ports (local)
 
 ### Access Control
 
-- All services are accessible only to devices in your Tailscale tailnet
-- Tailscale ACLs can further restrict access by user, device, or service
-- No services are exposed to the public internet
+- **Remote Access**: Services are accessible via Tailscale only to devices in your Tailscale tailnet
+- **Local Access**: Services are accessible from the host machine via published Docker ports
+- **Tailscale ACLs**: Can further restrict remote access by user, device, or service
+- **Security Note**: Host ports are exposed on the local machine—ensure proper firewall rules if the host is internet-facing
 - Credentials are managed via environment variables (never hardcoded)
 
 ### Credential Management
@@ -71,7 +74,11 @@ To disable:
 3. Remove `portainer-data` from the volumes section
 4. Remove the Tailscale serve mapping for port 9443
 
-## Tailscale Service Mappings
+## Service Access
+
+Services are accessible via both Tailscale (remote) and host ports (local).
+
+### Tailscale Service Mappings (Remote Access)
 
 All services are accessible via Tailscale on the following ports:
 
@@ -97,10 +104,35 @@ All services are accessible via Tailscale on the following ports:
 | `9090` | Grafana | `grafana:3000` | HTTP |
 | `9443` | Portainer (optional) | `portainer:9443` | HTTPS |
 
+### Host Port Mappings (Local Access)
+
+All services are also accessible from the host machine on the following ports:
+
+| Host Port | Service | Container Port | Protocol |
+|-----------|---------|----------------|----------|
+| `3000` | FlowFuse | `3000` | HTTP |
+| `1880` | Node-RED | `1880` | HTTP |
+| `1883` | HiveMQ CE | `1883` | MQTT |
+| `1884` | HiveMQ Edge | `1883` | MQTT |
+| `1885` | MonsterMQ MQTT | `1883` | MQTT |
+| `4000` | MonsterMQ GraphQL | `4000` | HTTP |
+| `4840` | MonsterMQ OPC UA | `4840` | OPC UA |
+| `5432` | PostgreSQL | `5432` | PostgreSQL |
+| `8088` | Ignition | `8088` | HTTP |
+| `8885` | MonsterMQ MQTT/TLS | `8883` | MQTT over TLS |
+| `9000` | MonsterMQ WebSocket | `9000` | WebSocket |
+| `9001` | MonsterMQ WebSocket Secure | `9001` | WSS |
+| `9002` | TimeBase Web Admin | `8011` | HTTP |
+| `9003` | TimeBase Message Endpoint | `8013` | TCP |
+| `9004` | TimeBase Historian Admin | `8011` | HTTP |
+| `9005` | TimeBase Historian Endpoint | `8013` | TCP |
+| `9086` | InfluxDB | `8086` | HTTP |
+| `9090` | Grafana | `3000` | HTTP |
+| `9443` | Portainer (optional) | `9443` | HTTPS |
+
 ### Accessing Services
 
-Once deployed, access services using your Tailscale device's IP or hostname:
-
+**Via Tailscale (Remote):**
 ```bash
 # Example: Access Grafana
 https://automation-stack:9090
@@ -110,6 +142,18 @@ http://automation-stack:1880
 
 # Example: Connect to HiveMQ MQTT
 mqtt://automation-stack:1883
+```
+
+**Via Host Ports (Local):**
+```bash
+# Example: Access Grafana
+http://localhost:9090
+
+# Example: Access Node-RED
+http://localhost:1880
+
+# Example: Connect to HiveMQ MQTT
+mqtt://localhost:1883
 ```
 
 ## Deployment
